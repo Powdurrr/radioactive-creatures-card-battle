@@ -341,6 +341,33 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
       }
     });
+
+    // Check for board-wide effects
+    const boardCards = newState.playerBoard.filter((card): card is Card => card !== null);
+    const transformedCount = boardCards.filter(card => card.isTransformed).length;
+    
+    if (transformedCount >= 3) {
+      // Synergy bonus for having multiple transformed creatures
+      boardCards.forEach(card => {
+        if (card.isTransformed) {
+          card.attack += 1;
+          card.defense += 1;
+        }
+      });
+      toast.success("Board Synergy: All transformed creatures powered up!", {
+        description: "Multiple transformations create a resonance effect"
+      });
+    }
+
+    // Radiation field effects
+    const radiationEffectTypes = new Set(boardCards.map(card => card.radiationEffect));
+    if (radiationEffectTypes.size >= 3) {
+      // Bonus for having diverse radiation effects
+      newState.playerRadiation = Math.max(0, newState.playerRadiation - 1);
+      toast.success("Radiation Harmony achieved!", {
+        description: "Diverse radiation effects stabilize the field"
+      });
+    }
   };
 
   const playCard = (cardId: string, zoneId: string) => {
