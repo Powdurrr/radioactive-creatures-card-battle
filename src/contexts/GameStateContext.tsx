@@ -41,6 +41,9 @@ interface GameState {
   isGameOver: boolean;
   winner: string | null;
   radiationZones: RadiationZone[];
+  canMulligan: boolean;
+  playerControlPoints: number;
+  opponentControlPoints: number;
 }
 
 interface GameStateContextType {
@@ -52,6 +55,7 @@ interface GameStateContextType {
   selectAttacker: (cardId: string) => void;
   selectBlocker: (cardId: string) => void;
   resetGame: () => void;
+  performMulligan: () => void;
 }
 
 const getInitialDeck = (): Card[] => {
@@ -83,7 +87,6 @@ const getInitialDeck = (): Card[] => {
     }
   });
   
-  // Shuffle the deck
   return deck.sort(() => Math.random() - 0.5);
 };
 
@@ -121,7 +124,10 @@ const initialGameState: GameState = {
   opponentRadiation: 0,
   isGameOver: false,
   winner: null,
-  radiationZones: []
+  radiationZones: [],
+  canMulligan: true,
+  playerControlPoints: 0,
+  opponentControlPoints: 0
 };
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
@@ -533,14 +539,13 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (nextPhase === 'Draw') {
         setTurnCount(turnCount + 1);
         
-        // Draw phase mechanics
-        if (newState.playerHand.length < 5) {  // Maximum hand size
+        if (newState.playerHand.length < 5) {
           drawCard();
         }
         
         newState.playerRadiation = Math.min(10, prev.playerRadiation + 1);
         
-        if (Math.random() < 0.3) {  // 30% chance for radiation zone
+        if (Math.random() < 0.3) {
           const availableSpots = newState.playerBoard
             .map((card, index) => ({ card, index }))
             .filter(({ card }) => card !== null)
@@ -555,6 +560,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         }
         
+        calculateBoardControl();
         checkWinCondition(newState);
         checkRadiationTriggers(newState, prev);
       }
@@ -742,6 +748,28 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
+  const performMulligan = () => {
+    if (!gameState.canMulligan) {
+      toast.error("Mulligan already used!");
+      return;
+    }
+
+    setGameState(prev => {
+      const newState = { ...prev };
+      newState.playerDeck = [...newState.playerDeck, ...newState.playerHand];
+      newState.playerDeck.sort(() => Math.random() - 0.5);
+      newState.playerHand = newState.playerDeck.slice(0, Math.min(5, newState.playerDeck.length));
+      newState.playerDeck = newState.playerDeck.slice(Math.min(5, newState.playerDeck.length));
+      newState.canMulligan = false;
+      
+      toast.success("Performed mulligan!", {
+        description: "Drew a fresh hand of cards"
+      });
+      
+      return newState;
+    });
+  };
+
   return (
     <GameStateContext.Provider value={{ 
       gameState, 
@@ -751,7 +779,8 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       advancePhase,
       selectAttacker,
       selectBlocker,
-      resetGame
+      resetGame,
+      performMulligan
     }}>
       {children}
       {gameState.isGameOver && gameState.winner && (
