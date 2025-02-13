@@ -22,6 +22,9 @@ interface Card {
   transformRequirement?: {
     radiation: number;
     stones: number;
+    adjacentEffects?: string[];
+    minTurn?: number;
+    maxRadiation?: number;
   };
 }
 
@@ -63,7 +66,9 @@ const initialGameState: GameState = {
       radiationEffect: "boost",
       transformRequirement: {
         radiation: 5,
-        stones: 3
+        stones: 3,
+        adjacentEffects: ["amplify", "shield"],
+        minTurn: 3
       }
     },
     { 
@@ -74,7 +79,12 @@ const initialGameState: GameState = {
       stones: 0, 
       isTransformed: false,
       radiationEffect: "shield",
-      specialAbility: "Reduces radiation damage by 1"
+      specialAbility: "Reduces radiation damage by 1",
+      transformRequirement: {
+        radiation: 4,
+        stones: 2,
+        maxRadiation: 7
+      }
     },
     { 
       id: 'hand-3', 
@@ -84,7 +94,12 @@ const initialGameState: GameState = {
       stones: 0, 
       isTransformed: false,
       radiationEffect: "amplify",
-      specialAbility: "All radiation effects are doubled"
+      specialAbility: "All radiation effects are doubled",
+      transformRequirement: {
+        radiation: 6,
+        stones: 4,
+        adjacentEffects: ["boost"]
+      }
     }
   ],
   opponentBoard: [
@@ -124,6 +139,7 @@ const GameStateContext = createContext<GameStateContextType | undefined>(undefin
 
 export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
+  const [turnCount, setTurnCount] = useState(1);
 
   const calculateRadiationBonus = (radiation: number, hasAmplifier: boolean) => {
     let bonus = 0;
@@ -254,6 +270,65 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
+  const checkTransformationRequirements = (
+    card: Card, 
+    index: number, 
+    radiation: number,
+    board: (Card | null)[]
+  ): { canTransform: boolean; reason?: string } => {
+    const requirement = card.transformRequirement;
+    if (!requirement) return { canTransform: false, reason: "No transformation available" };
+
+    if (card.stones < requirement.stones) {
+      return { 
+        canTransform: false, 
+        reason: `Needs ${requirement.stones} stones (has ${card.stones})`
+      };
+    }
+
+    if (radiation < requirement.radiation) {
+      return { 
+        canTransform: false, 
+        reason: `Needs ${requirement.radiation} radiation (has ${radiation})`
+      };
+    }
+
+    if (requirement.maxRadiation && radiation > requirement.maxRadiation) {
+      return { 
+        canTransform: false, 
+        reason: `Radiation too high (max ${requirement.maxRadiation})`
+      };
+    }
+
+    if (requirement.minTurn && turnCount < requirement.minTurn) {
+      return { 
+        canTransform: false, 
+        reason: `Must wait until turn ${requirement.minTurn}`
+      };
+    }
+
+    if (requirement.adjacentEffects) {
+      const adjacentCards = [
+        index > 0 ? board[index - 1] : null,
+        index < board.length - 1 ? board[index + 1] : null
+      ].filter((card): card is Card => card !== null);
+
+      const hasRequiredAdjacent = adjacentCards.some(
+        adjacent => adjacent.radiationEffect && 
+        requirement.adjacentEffects?.includes(adjacent.radiationEffect)
+      );
+
+      if (!hasRequiredAdjacent) {
+        return { 
+          canTransform: false, 
+          reason: `Needs adjacent ${requirement.adjacentEffects.join(" or ")} effect`
+        };
+      }
+    }
+
+    return { canTransform: true };
+  };
+
   const transformCard = (cardId: string) => {
     if (gameState.currentPhase !== 'Recovery') {
       console.log('Transformations can only occur during Recovery phase');
@@ -267,13 +342,14 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       for (let i = 0; i < newState.playerBoard.length; i++) {
         const card = newState.playerBoard[i];
         if (card?.id === cardId) {
-          const requirement = card.transformRequirement;
+          const transformCheck = checkTransformationRequirements(
+            card,
+            i,
+            prev.playerRadiation,
+            prev.playerBoard
+          );
           
-          if (requirement && 
-              card.stones >= requirement.stones && 
-              prev.playerRadiation >= requirement.radiation &&
-              !card.isTransformed) {
-            
+          if (transformCheck.canTransform && !card.isTransformed) {
             newState.playerBoard[i] = {
               ...card,
               isTransformed: true,
@@ -287,21 +363,19 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               description: "Power levels have increased significantly"
             });
             
-            // Radiation burst on transformation
             if (card.radiationEffect === "burst") {
               newState.opponentRadiation = Math.min(10, newState.opponentRadiation + 3);
               toast.warning("Transformation caused a radiation burst!");
             }
-            break;
-          } else if (requirement) {
+          } else if (transformCheck.reason) {
             toast.error("Transformation requirements not met!", {
-              description: `Needs ${requirement.stones} stones and ${requirement.radiation} radiation`
+              description: transformCheck.reason
             });
           }
+          break;
         }
       }
 
-      // Check for chain reactions if transformation occurred
       if (transformedIndex !== -1) {
         checkChainReactions(newState, transformedIndex);
       }
@@ -314,7 +388,6 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const transformedCard = newState.playerBoard[transformedCardIndex];
     if (!transformedCard) return;
 
-    // Check adjacent cards for chain reactions
     const adjacentIndices = [
       transformedCardIndex - 1,
       transformedCardIndex + 1
@@ -324,17 +397,14 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const adjacentCard = newState.playerBoard[index];
       if (!adjacentCard || adjacentCard.isTransformed) return;
 
-      // Chain reaction based on radiation effects
       if (transformedCard.radiationEffect === "amplify" && 
           adjacentCard.radiationEffect === "burst") {
-        // Amplify + Burst combination
         newState.opponentRadiation = Math.min(10, newState.opponentRadiation + 3);
         toast.success("Chain Reaction: Amplified Burst!", {
           description: `${adjacentCard.name} resonates with ${transformedCard.name}`
         });
       } else if (transformedCard.radiationEffect === "shield" && 
                 adjacentCard.radiationEffect === "boost") {
-        // Shield + Boost combination
         adjacentCard.defense += 2;
         toast.success("Chain Reaction: Reinforced Defense!", {
           description: `${adjacentCard.name} is strengthened by ${transformedCard.name}`
@@ -342,12 +412,10 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     });
 
-    // Check for board-wide effects
     const boardCards = newState.playerBoard.filter((card): card is Card => card !== null);
     const transformedCount = boardCards.filter(card => card.isTransformed).length;
     
     if (transformedCount >= 3) {
-      // Synergy bonus for having multiple transformed creatures
       boardCards.forEach(card => {
         if (card.isTransformed) {
           card.attack += 1;
@@ -359,10 +427,8 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
     }
 
-    // Radiation field effects
     const radiationEffectTypes = new Set(boardCards.map(card => card.radiationEffect));
     if (radiationEffectTypes.size >= 3) {
-      // Bonus for having diverse radiation effects
       newState.playerRadiation = Math.max(0, newState.playerRadiation - 1);
       toast.success("Radiation Harmony achieved!", {
         description: "Diverse radiation effects stabilize the field"
@@ -384,7 +450,6 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (card && zoneIndex >= 0 && zoneIndex < 5) {
         const hasAmplifier = hasAmplifierOnBoard(newState.playerBoard);
         
-        // Apply radiation effects when card is played
         switch (card.radiationEffect) {
           case "reduce":
             const reduction = hasAmplifier ? 2 : 1;
@@ -415,11 +480,9 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             break;
         }
 
-        // Apply special abilities based on radiation thresholds
-        const bonus = calculateRadiationBonus(newState.playerRadiation, hasAmplifier);
         if (newState.playerRadiation >= 5 && card.radiationEffect === "boost") {
           toast.success("Radiation Surge: Attack power increased!", {
-            description: `${card.name} gains +${bonus} attack!`
+            description: `${card.name} gains +${calculateRadiationBonus(newState.playerRadiation, hasAmplifier)} attack!`
           });
         }
 
@@ -478,36 +541,31 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       
       const newState = { ...prev, currentPhase: nextPhase };
       
-      switch (nextPhase) {
-        case 'Draw':
-          // Apply radiation zone effects at the start of turn
-          applyRadiationZoneEffects(newState);
+      if (nextPhase === 'Draw') {
+        setTurnCount(turnCount + 1);
+        newState.playerRadiation = Math.min(10, prev.playerRadiation + 1);
+        
+        if (Math.random() < 0.3) {
+          const availableSpots = newState.playerBoard
+            .map((card, index) => ({ card, index }))
+            .filter(({ card }) => card !== null)
+            .map(({ index }) => index);
           
-          // Increment radiation counter
-          newState.playerRadiation = Math.min(10, prev.playerRadiation + 1);
-          
-          // Random chance to create new radiation zone
-          if (Math.random() < 0.3) { // 30% chance each turn
-            const availableSpots = newState.playerBoard
-              .map((card, index) => ({ card, index }))
-              .filter(({ card }) => card !== null)
-              .map(({ index }) => index);
+          if (availableSpots.length > 0) {
+            const randomSpot = availableSpots[Math.floor(Math.random() * availableSpots.length)];
+            const zoneTypes: RadiationZone["type"][] = ["boost", "drain", "shield"];
+            const randomType = zoneTypes[Math.floor(Math.random() * zoneTypes.length)];
             
-            if (availableSpots.length > 0) {
-              const randomSpot = availableSpots[Math.floor(Math.random() * availableSpots.length)];
-              const zoneTypes: RadiationZone["type"][] = ["boost", "drain", "shield"];
-              const randomType = zoneTypes[Math.floor(Math.random() * zoneTypes.length)];
-              
-              createRadiationZone(randomSpot, randomType);
-            }
+            createRadiationZone(randomSpot, randomType);
           }
-          
-          checkWinCondition(newState);
-          checkRadiationTriggers(newState, prev);
-          break;
-          
+        }
+        
+        checkWinCondition(newState);
+        checkRadiationTriggers(newState, prev);
+      }
+      
+      switch (nextPhase) {
         case 'Recovery':
-          // Check for transformations
           newState.playerBoard = newState.playerBoard.map(card => {
             if (card && card.stones >= 3 && !card.isTransformed) {
               return {
@@ -521,7 +579,6 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           break;
 
         case 'Damage':
-          // Resolve combat if there are attacking and blocking creatures
           if (prev.selectedAttacker && prev.selectedBlocker) {
             const attacker = prev.playerBoard.find(card => card?.id === prev.selectedAttacker);
             const blocker = prev.opponentBoard.find(card => card?.id === prev.selectedBlocker);
@@ -529,13 +586,11 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             if (attacker && blocker) {
               const isDestroyed = resolveCombat(attacker, blocker);
               if (isDestroyed) {
-                // Remove the destroyed creature
                 newState.opponentBoard = newState.opponentBoard.map(card =>
                   card?.id === prev.selectedBlocker ? null : card
                 );
               }
             } else if (prev.selectedAttacker) {
-              // Direct attack with no blocker - remove a random opponent creature
               const attacker = prev.playerBoard.find(card => card?.id === prev.selectedAttacker);
               if (attacker) {
                 const occupiedSlots = newState.opponentBoard
@@ -551,7 +606,6 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             }
           }
           
-          // Reset combat selections
           newState.selectedAttacker = null;
           newState.selectedBlocker = null;
           newState.playerBoard = newState.playerBoard.map(card => 
@@ -598,7 +652,6 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     });
 
-    // Update zone durations and remove expired zones
     newState.radiationZones = newState.radiationZones
       .map(zone => ({ ...zone, duration: zone.duration - 1 }))
       .filter(zone => zone.duration > 0);
@@ -608,11 +661,10 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setGameState(prev => {
       const newState = { ...prev };
       
-      // Create new radiation zone
       newState.radiationZones.push({
         index,
         type,
-        duration: 3 // Zones last for 3 turns
+        duration: 3
       });
 
       toast.info("Radiation Zone Created!", {
