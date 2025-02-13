@@ -39,6 +39,17 @@ interface GameState {
   radiationZones: RadiationZone[];
 }
 
+interface GameStateContextType {
+  gameState: GameState;
+  attachStone: (sourceId: string, targetId: string) => void;
+  playCard: (cardId: string, zoneId: string) => void;
+  transformCard: (cardId: string) => void;
+  advancePhase: () => void;
+  selectAttacker: (cardId: string) => void;
+  selectBlocker: (cardId: string) => void;
+  resetGame: () => void;
+}
+
 const initialGameState: GameState = {
   playerBoard: Array(5).fill(null),
   playerHand: [
