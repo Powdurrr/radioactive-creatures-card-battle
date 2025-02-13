@@ -53,18 +53,53 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setGameState(prev => {
       const currentIndex = phases.indexOf(prev.currentPhase);
       const nextIndex = (currentIndex + 1) % phases.length;
-      
-      // Reset to Draw phase if we were in End phase
       const nextPhase = phases[nextIndex];
       
-      return {
-        ...prev,
-        currentPhase: nextPhase
-      };
+      // Apply phase-specific effects
+      const newState = { ...prev, currentPhase: nextPhase };
+      
+      switch (nextPhase) {
+        case 'Draw':
+          // Add a new card to hand at the start of turn
+          newState.playerHand = [
+            ...newState.playerHand,
+            { 
+              id: `hand-${Date.now()}`, 
+              name: 'Baby Godzilla', 
+              attack: 2, 
+              defense: 3, 
+              stones: 0, 
+              isTransformed: false 
+            }
+          ];
+          break;
+          
+        case 'Recovery':
+          // Check for transformations
+          newState.playerBoard = newState.playerBoard.map(card => {
+            if (card && card.stones >= 3 && !card.isTransformed) {
+              return {
+                ...card,
+                isTransformed: true,
+                name: card.name.replace('Baby ', '')
+              };
+            }
+            return card;
+          });
+          break;
+      }
+      
+      return newState;
     });
   };
 
   const attachStone = (sourceId: string, targetId: string) => {
+    // Only allow stone attachment during Initiative phase
+    if (gameState.currentPhase !== 'Initiative') {
+      console.log('Stones can only be attached during Initiative phase');
+      return;
+    }
+
     setGameState(prev => {
       const newState = { ...prev };
       
@@ -88,6 +123,12 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const playCard = (cardId: string, zoneId: string) => {
+    // Only allow playing cards during Initiative phase
+    if (gameState.currentPhase !== 'Initiative') {
+      console.log('Cards can only be played during Initiative phase');
+      return;
+    }
+
     setGameState(prev => {
       const newState = { ...prev };
       const zoneIndex = parseInt(zoneId.split('-')[1]);
@@ -103,6 +144,12 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const transformCard = (cardId: string) => {
+    // Only allow transformations during Recovery phase
+    if (gameState.currentPhase !== 'Recovery') {
+      console.log('Transformations can only occur during Recovery phase');
+      return;
+    }
+
     setGameState(prev => {
       const newState = { ...prev };
       
