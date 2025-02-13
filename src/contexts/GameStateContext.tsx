@@ -1,4 +1,3 @@
-<lov-code>
 import React, { createContext, useContext, useState } from 'react';
 import { toast } from "sonner";
 
@@ -493,7 +492,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const adjacentCards = [
         index > 0 ? board[index - 1] : null,
         index < board.length - 1 ? board[index + 1] : null
-      ].filter((card): card is Card => card !== null);
+      ].filter((card): card is Card => card !== null);\
 
       const hasRequiredAdjacent = adjacentCards.some(
         adjacent => adjacent.radiationEffect && 
@@ -955,4 +954,4 @@ const useUltimateAbility = (cardId: string) => {
       case "Chain Reaction":
         newState.opponentBoard = newState.opponentBoard.map(c => 
           c?.isTransformed ? c : null
-        
+        );
