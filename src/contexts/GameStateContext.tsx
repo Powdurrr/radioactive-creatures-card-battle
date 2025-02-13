@@ -254,6 +254,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setGameState(prev => {
       const newState = { ...prev };
+      let transformedIndex = -1;
       
       for (let i = 0; i < newState.playerBoard.length; i++) {
         const card = newState.playerBoard[i];
@@ -272,6 +273,8 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               specialAbility: card.specialAbility + " (Enhanced)",
             };
             
+            transformedIndex = i;
+            
             toast.success(`${card.name} has transformed!`, {
               description: "Power levels have increased significantly"
             });
@@ -289,8 +292,46 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         }
       }
+
+      // Check for chain reactions if transformation occurred
+      if (transformedIndex !== -1) {
+        checkChainReactions(newState, transformedIndex);
+      }
       
       return newState;
+    });
+  };
+
+  const checkChainReactions = (newState: GameState, transformedCardIndex: number) => {
+    const transformedCard = newState.playerBoard[transformedCardIndex];
+    if (!transformedCard) return;
+
+    // Check adjacent cards for chain reactions
+    const adjacentIndices = [
+      transformedCardIndex - 1,
+      transformedCardIndex + 1
+    ].filter(i => i >= 0 && i < 5);
+
+    adjacentIndices.forEach(index => {
+      const adjacentCard = newState.playerBoard[index];
+      if (!adjacentCard || adjacentCard.isTransformed) return;
+
+      // Chain reaction based on radiation effects
+      if (transformedCard.radiationEffect === "amplify" && 
+          adjacentCard.radiationEffect === "burst") {
+        // Amplify + Burst combination
+        newState.opponentRadiation = Math.min(10, newState.opponentRadiation + 3);
+        toast.success("Chain Reaction: Amplified Burst!", {
+          description: `${adjacentCard.name} resonates with ${transformedCard.name}`
+        });
+      } else if (transformedCard.radiationEffect === "shield" && 
+                adjacentCard.radiationEffect === "boost") {
+        // Shield + Boost combination
+        adjacentCard.defense += 2;
+        toast.success("Chain Reaction: Reinforced Defense!", {
+          description: `${adjacentCard.name} is strengthened by ${transformedCard.name}`
+        });
+      }
     });
   };
 
