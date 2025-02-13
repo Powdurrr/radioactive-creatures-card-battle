@@ -31,6 +31,7 @@ interface Card {
 interface GameState {
   playerBoard: (Card | null)[];
   playerHand: Card[];
+  playerDeck: Card[];
   opponentBoard: (Card | null)[];
   currentPhase: string;
   selectedAttacker: string | null;
@@ -53,55 +54,43 @@ interface GameStateContextType {
   resetGame: () => void;
 }
 
+const getInitialDeck = (): Card[] => {
+  const deck: Card[] = [];
+  const effects: Card['radiationEffect'][] = ["boost", "reduce", "drain", "amplify", "shield", "burst"];
+  
+  effects.forEach(effect => {
+    const name = getCardNameByEffect(effect);
+    const attack = getCardAttackByEffect(effect);
+    const defense = getCardDefenseByEffect(effect);
+    const ability = getCardAbilityByEffect(effect);
+    
+    // Add 3 copies of each card type
+    for (let i = 0; i < 3; i++) {
+      deck.push({
+        id: `deck-${effect}-${i}`,
+        name,
+        attack,
+        defense,
+        stones: 0,
+        isTransformed: false,
+        radiationEffect: effect,
+        specialAbility: ability,
+        transformRequirement: {
+          radiation: 5,
+          stones: 3
+        }
+      });
+    }
+  });
+  
+  // Shuffle the deck
+  return deck.sort(() => Math.random() - 0.5);
+};
+
 const initialGameState: GameState = {
   playerBoard: Array(5).fill(null),
-  playerHand: [
-    { 
-      id: 'hand-1', 
-      name: 'Baby Godzilla', 
-      attack: 2, 
-      defense: 3, 
-      stones: 0, 
-      isTransformed: false,
-      radiationEffect: "boost",
-      transformRequirement: {
-        radiation: 5,
-        stones: 3,
-        adjacentEffects: ["amplify", "shield"],
-        minTurn: 3
-      }
-    },
-    { 
-      id: 'hand-2', 
-      name: 'Radiation Shield', 
-      attack: 1, 
-      defense: 5, 
-      stones: 0, 
-      isTransformed: false,
-      radiationEffect: "shield",
-      specialAbility: "Reduces radiation damage by 1",
-      transformRequirement: {
-        radiation: 4,
-        stones: 2,
-        maxRadiation: 7
-      }
-    },
-    { 
-      id: 'hand-3', 
-      name: 'Radiation Amplifier', 
-      attack: 3, 
-      defense: 2, 
-      stones: 0, 
-      isTransformed: false,
-      radiationEffect: "amplify",
-      specialAbility: "All radiation effects are doubled",
-      transformRequirement: {
-        radiation: 6,
-        stones: 4,
-        adjacentEffects: ["boost"]
-      }
-    }
-  ],
+  playerHand: [],
+  playerDeck: getInitialDeck(),
   opponentBoard: [
     { 
       id: 'op-1', 
@@ -543,9 +532,15 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       
       if (nextPhase === 'Draw') {
         setTurnCount(turnCount + 1);
+        
+        // Draw phase mechanics
+        if (newState.playerHand.length < 5) {  // Maximum hand size
+          drawCard();
+        }
+        
         newState.playerRadiation = Math.min(10, prev.playerRadiation + 1);
         
-        if (Math.random() < 0.3) {
+        if (Math.random() < 0.3) {  // 30% chance for radiation zone
           const availableSpots = newState.playerBoard
             .map((card, index) => ({ card, index }))
             .filter(({ card }) => card !== null)
@@ -719,6 +714,32 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       case "burst": return "Release stored radiation at level 5";
       default: return undefined;
     }
+  };
+
+  const drawCard = () => {
+    setGameState(prev => {
+      const newState = { ...prev };
+      
+      if (newState.playerDeck.length === 0) {
+        toast.error("No cards left in deck!");
+        if (newState.playerHand.length === 0) {
+          newState.isGameOver = true;
+          newState.winner = "opponent";
+          toast.error("Game Over - Out of cards!");
+        }
+        return newState;
+      }
+      
+      const drawnCard = newState.playerDeck[0];
+      newState.playerHand.push(drawnCard);
+      newState.playerDeck = newState.playerDeck.slice(1);
+      
+      toast.success(`Drew ${drawnCard.name}!`, {
+        description: drawnCard.specialAbility || `A ${drawnCard.radiationEffect} type card`
+      });
+      
+      return newState;
+    });
   };
 
   return (
