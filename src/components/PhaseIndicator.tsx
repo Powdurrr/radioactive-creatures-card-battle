@@ -1,7 +1,9 @@
 
 import React from "react";
+import { useGameState } from "../contexts/GameStateContext";
 
 export const PhaseIndicator = () => {
+  const { gameState } = useGameState();
   const phases = [
     "Draw",
     "Initiative",
@@ -19,7 +21,7 @@ export const PhaseIndicator = () => {
           key={i}
           className={`
             px-3 py-1 rounded-md text-sm transition-colors
-            ${phase === "Initiative" 
+            ${phase === gameState.currentPhase 
               ? "bg-primary text-white" 
               : "text-white/60 hover:bg-gray-700/50"}
           `}

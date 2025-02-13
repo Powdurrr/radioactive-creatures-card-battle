@@ -1,7 +1,10 @@
 
 import React from "react";
+import { useGameState } from "../contexts/GameStateContext";
 
 export const GameInfo = () => {
+  const { gameState } = useGameState();
+
   return (
     <div className="
       px-6 py-4 rounded-lg
@@ -10,7 +13,7 @@ export const GameInfo = () => {
       animate-fade-in
     ">
       <div className="flex flex-col items-center gap-2">
-        <h2 className="text-lg font-medium">Initiative Phase</h2>
+        <h2 className="text-lg font-medium">{gameState.currentPhase} Phase</h2>
         <div className="flex gap-4">
           <button className="px-4 py-2 rounded-md bg-primary text-white hover:bg-primary-hover transition-colors">
             End Phase
