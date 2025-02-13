@@ -8,21 +8,20 @@ interface PlayerZoneProps {
 
 export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
   const zoneClasses = `
-    w-full p-6 rounded-xl
-    bg-card backdrop-blur-sm shadow-lg
-    border border-gray-200/50
-    ${isOpponent ? "mb-4" : "mt-4"}
+    w-full p-4 rounded-lg
+    bg-gray-900/30 backdrop-blur-sm
+    border border-gray-700/50
   `;
 
   return (
     <div className={zoneClasses}>
       <div className="flex flex-col gap-4">
         {/* Board */}
-        <div className="grid grid-cols-5 gap-4 min-h-[120px]">
+        <div className="grid grid-cols-5 gap-4 min-h-[140px]">
           {[...Array(5)].map((_, i) => (
             <div
               key={i}
-              className="border-2 border-dashed border-gray-200/50 rounded-lg h-full min-h-[120px]"
+              className="border border-gray-600/30 rounded-lg h-full min-h-[140px]"
             />
           ))}
         </div>
