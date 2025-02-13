@@ -130,7 +130,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return board.some(card => card?.radiationEffect === "amplify");
   };
 
-  const checkRadiationTriggers = (newState: GameState) => {
+  const checkRadiationTriggers = (newState: GameState, previousState: GameState) => {
     const hasShield = newState.playerBoard.some(card => card?.radiationEffect === "shield");
     const radiation = newState.playerRadiation;
     
@@ -162,7 +162,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     // Shield effect
-    if (hasShield && newState.playerRadiation > prev.playerRadiation) {
+    if (hasShield && newState.playerRadiation > previousState.playerRadiation) {
       newState.playerRadiation--;
       toast.success("Radiation Shield absorbed 1 radiation!");
     }
@@ -351,7 +351,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         newState.playerHand = newState.playerHand.filter(c => c.id !== cardId);
       }
       
-      checkRadiationTriggers(newState);
+      checkRadiationTriggers(newState, prev);
       return newState;
     });
   };
@@ -407,7 +407,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           // Increment radiation counter at the start of each turn
           newState.playerRadiation = Math.min(10, prev.playerRadiation + 1);
           checkWinCondition(newState);
-          checkRadiationTriggers(newState);
+          checkRadiationTriggers(newState, prev);
           
           // Add a new card to hand with random radiation effects
           const effects: Card['radiationEffect'][] = [
