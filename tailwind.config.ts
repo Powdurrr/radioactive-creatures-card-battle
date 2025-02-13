@@ -46,6 +46,8 @@ export default {
         "card-hover": "card-hover 0.3s ease-in-out forwards",
         "fade-in": "fade-in 0.5s ease-in-out forwards",
         "slide-in": "slide-in 0.3s ease-in-out forwards",
+        "transform": "transform 1s ease-in-out",
+        "glow": "glow 1s ease-in-out",
       },
       keyframes: {
         "card-hover": {
@@ -60,6 +62,31 @@ export default {
           "0%": { transform: "translateX(-10px)", opacity: "0" },
           "100%": { transform: "translateX(0)", opacity: "1" },
         },
+        "transform": {
+          "0%": { 
+            transform: "scale(1) rotate(0deg)",
+            filter: "brightness(1)"
+          },
+          "50%": { 
+            transform: "scale(1.2) rotate(180deg)",
+            filter: "brightness(1.5)"
+          },
+          "100%": { 
+            transform: "scale(1.1) rotate(360deg)",
+            filter: "brightness(1.2)"
+          }
+        },
+        "glow": {
+          "0%": { 
+            boxShadow: "0 0 0 0 rgba(45, 212, 191, 0.4)"
+          },
+          "50%": {
+            boxShadow: "0 0 30px 10px rgba(45, 212, 191, 0.6)"
+          },
+          "100%": {
+            boxShadow: "0 0 0 0 rgba(45, 212, 191, 0.4)"
+          }
+        }
       },
       backdropBlur: {
         xs: "2px",
