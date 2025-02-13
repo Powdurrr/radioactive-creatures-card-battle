@@ -99,7 +99,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   return (
     <GameStateContext.Provider value={{ gameState, attachStone, playCard, transformCard }}>
       {children}
-    </GameStateProvider>
+    </GameStateContext.Provider>
   );
 };
 
