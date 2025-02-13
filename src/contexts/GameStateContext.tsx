@@ -26,6 +26,13 @@ interface Card {
     minTurn?: number;
     maxRadiation?: number;
   };
+  // New: Additional properties for enhanced effects
+  comboEffects?: {
+    type: "chain" | "synergy" | "resonance";
+    bonus: number;
+    requirement: string[];
+  }[];
+  energyStored?: number;
 }
 
 interface GameStateContextType {
@@ -198,14 +205,51 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     let attackerPower = attacker.isTransformed ? attacker.attack * 2 : attacker.attack;
     let blockerDefense = blocker.isTransformed ? Math.floor(blocker.defense * 1.5) : blocker.defense;
     
-    // Apply radiation bonuses
+    // Apply radiation bonuses and check for stored energy
     if (attacker.radiationEffect === "boost") {
       attackerPower += attackerBonus;
+      if (attacker.energyStored) {
+        attackerPower += attacker.energyStored;
+        toast.success(`Energy Release: +${attacker.energyStored} attack!`);
+      }
     }
-    if (blocker.radiationEffect === "boost") {
-      blockerDefense += blockerBonus;
+
+    // New: Strategic positioning bonus
+    const attackerIndex = gameState.playerBoard.findIndex(card => card?.id === attacker.id);
+    const centerBonus = attackerIndex === 2 ? 1 : 0;
+    if (centerBonus) {
+      attackerPower += centerBonus;
+      toast.success("Center Position Bonus: +1 attack!");
     }
-    
+
+    // New: Combo Effects
+    attacker.comboEffects?.forEach(combo => {
+      const hasRequiredCards = combo.requirement.every(effect =>
+        gameState.playerBoard.some(card => card?.radiationEffect === effect)
+      );
+      
+      if (hasRequiredCards) {
+        switch (combo.type) {
+          case "chain":
+            attackerPower += combo.bonus;
+            toast.success(`Chain Combo: +${combo.bonus} attack!`);
+            break;
+          case "synergy":
+            if (attacker.isTransformed) {
+              attackerPower += combo.bonus * 2;
+              toast.success(`Synergy Bonus: +${combo.bonus * 2} attack!`);
+            }
+            break;
+          case "resonance":
+            if (gameState.playerRadiation >= 5) {
+              attackerPower += combo.bonus;
+              toast.success(`Radiation Resonance: +${combo.bonus} attack!`);
+            }
+            break;
+        }
+      }
+    });
+
     // New: Combat chain effects
     if (attacker.radiationEffect === "burst" && gameState.playerRadiation >= 5) {
       attackerPower += Math.floor(gameState.playerRadiation / 2);
@@ -410,6 +454,12 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const transformedCard = newState.playerBoard[transformedCardIndex];
     if (!transformedCard) return;
 
+    // New: Energy storage mechanic
+    if (transformedCard.radiationEffect === "boost") {
+      transformedCard.energyStored = Math.floor(newState.playerRadiation / 2);
+      toast.info(`${transformedCard.name} stores ${transformedCard.energyStored} energy!`);
+    }
+
     const adjacentIndices = [
       transformedCardIndex - 1,
       transformedCardIndex + 1
@@ -456,6 +506,24 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         description: "Diverse radiation effects stabilize the field"
       });
     }
+
+    // New: Advanced board positioning effects
+    const isInCenter = transformedCardIndex === 2;
+    if (isInCenter && transformedCard.isTransformed) {
+      const adjacentCards = [
+        newState.playerBoard[1],
+        newState.playerBoard[3]
+      ].filter((card): card is Card => card !== null);
+      
+      adjacentCards.forEach(card => {
+        if (card.radiationEffect === transformedCard.radiationEffect) {
+          card.defense += 1;
+          toast.success("Center Formation Bonus!", {
+            description: `Adjacent ${card.name} gains +1 defense`
+          });
+        }
+      });
+    }
   };
 
   const playCard = (cardId: string, zoneId: string) => {
@@ -470,6 +538,35 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const card = newState.playerHand.find(c => c.id === cardId);
       
       if (card && zoneIndex >= 0 && zoneIndex < 5) {
+        // New: Strategic placement effects
+        if (zoneIndex === 2) {
+          if (card.radiationEffect === "amplify") {
+            toast.success("Center Amplification!", {
+              description: "Radiation effects are enhanced"
+            });
+            card.specialAbility = card.specialAbility + " (Center Enhanced)";
+          }
+        }
+
+        // New: Formation bonuses
+        const adjacentCards = [
+          zoneIndex > 0 ? newState.playerBoard[zoneIndex - 1] : null,
+          zoneIndex < 4 ? newState.playerBoard[zoneIndex + 1] : null
+        ].filter((c): c is Card => c !== null);
+
+        if (adjacentCards.length > 0) {
+          const matchingEffects = adjacentCards.filter(
+            c => c.radiationEffect === card.radiationEffect
+          );
+
+          if (matchingEffects.length > 0) {
+            card.defense += matchingEffects.length;
+            toast.success("Formation Bonus!", {
+              description: `+${matchingEffects.length} defense from adjacent allies`
+            });
+          }
+        }
+
         const hasAmplifier = hasAmplifierOnBoard(newState.playerBoard);
         
         switch (card.radiationEffect) {
