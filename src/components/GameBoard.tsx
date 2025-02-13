@@ -13,8 +13,8 @@ export const GameBoard = () => {
         <div className="grid grid-cols-[200px_1fr_300px] gap-4 min-h-[90vh]">
           {/* Left Column - Player Info */}
           <div className="flex flex-col gap-4">
-            <PlayerInfo username="Opponent" life={20} isOpponent />
-            <PlayerInfo username="Player" life={20} />
+            <PlayerInfo username="Opponent" creaturesLeft={3} isOpponent />
+            <PlayerInfo username="Player" creaturesLeft={3} />
           </div>
           
           {/* Center Column - Game Board */}

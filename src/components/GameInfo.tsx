@@ -10,7 +10,7 @@ export const GameInfo = () => {
       animate-fade-in
     ">
       <div className="flex flex-col items-center gap-2">
-        <h2 className="text-lg font-medium">Main Phase 1</h2>
+        <h2 className="text-lg font-medium">Initiative Phase</h2>
         <div className="flex gap-4">
           <button className="px-4 py-2 rounded-md bg-primary text-white hover:bg-primary-hover transition-colors">
             End Phase

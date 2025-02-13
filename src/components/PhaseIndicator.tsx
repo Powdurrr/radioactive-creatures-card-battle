@@ -4,11 +4,11 @@ import React from "react";
 export const PhaseIndicator = () => {
   const phases = [
     "Draw",
-    "Main 1",
+    "Initiative",
     "Attack",
     "Block",
     "Damage",
-    "Main 2",
+    "Recovery",
     "End",
   ];
 
@@ -19,7 +19,7 @@ export const PhaseIndicator = () => {
           key={i}
           className={`
             px-3 py-1 rounded-md text-sm transition-colors
-            ${phase === "Main 1" 
+            ${phase === "Initiative" 
               ? "bg-primary text-white" 
               : "text-white/60 hover:bg-gray-700/50"}
           `}
