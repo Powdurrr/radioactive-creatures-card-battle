@@ -28,6 +28,17 @@ interface Card {
   };
 }
 
+interface GameStateContextType {
+  gameState: GameState;
+  attachStone: (sourceId: string, targetId: string) => void;
+  playCard: (cardId: string, zoneId: string) => void;
+  transformCard: (cardId: string) => void;
+  advancePhase: () => void;
+  selectAttacker: (cardId: string) => void;
+  selectBlocker: (cardId: string) => void;
+  resetGame: () => void;
+}
+
 interface GameState {
   playerBoard: (Card | null)[];
   playerHand: Card[];
@@ -43,16 +54,51 @@ interface GameState {
   radiationZones: RadiationZone[];
 }
 
-interface GameStateContextType {
-  gameState: GameState;
-  attachStone: (sourceId: string, targetId: string) => void;
-  playCard: (cardId: string, zoneId: string) => void;
-  transformCard: (cardId: string) => void;
-  advancePhase: () => void;
-  selectAttacker: (cardId: string) => void;
-  selectBlocker: (cardId: string) => void;
-  resetGame: () => void;
-}
+const getCardNameByEffect = (effect: Card['radiationEffect']): string => {
+  switch (effect) {
+    case "boost": return "Baby Godzilla";
+    case "reduce": return "Radiation Absorber";
+    case "drain": return "Radiation Drainer";
+    case "amplify": return "Radiation Amplifier";
+    case "shield": return "Radiation Shield";
+    case "burst": return "Radiation Burster";
+    default: return "Unknown Creature";
+  }
+};
+
+const getCardAttackByEffect = (effect: Card['radiationEffect']): number => {
+  switch (effect) {
+    case "boost": return 2;
+    case "reduce": return 1;
+    case "drain": return 3;
+    case "amplify": return 3;
+    case "shield": return 1;
+    case "burst": return 4;
+    default: return 2;
+  }
+};
+
+const getCardDefenseByEffect = (effect: Card['radiationEffect']): number => {
+  switch (effect) {
+    case "boost": return 3;
+    case "reduce": return 4;
+    case "drain": return 2;
+    case "amplify": return 2;
+    case "shield": return 5;
+    case "burst": return 1;
+    default: return 3;
+  }
+};
+
+const getCardAbilityByEffect = (effect: Card['radiationEffect']): string | undefined => {
+  switch (effect) {
+    case "reduce": return "Reduce radiation by 1 when played";
+    case "amplify": return "Double all radiation effects";
+    case "shield": return "Reduces radiation damage by 1";
+    case "burst": return "Release stored radiation at level 5";
+    default: return undefined;
+  }
+};
 
 const getInitialDeck = (): Card[] => {
   const deck: Card[] = [];
@@ -670,50 +716,25 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
-  const getCardNameByEffect = (effect: Card['radiationEffect']) => {
-    switch (effect) {
-      case "boost": return "Baby Godzilla";
-      case "reduce": return "Radiation Absorber";
-      case "drain": return "Radiation Drainer";
-      case "amplify": return "Radiation Amplifier";
-      case "shield": return "Radiation Shield";
-      case "burst": return "Radiation Burster";
-      default: return "Unknown Creature";
-    }
-  };
-
-  const getCardAttackByEffect = (effect: Card['radiationEffect']) => {
-    switch (effect) {
-      case "boost": return 2;
-      case "reduce": return 1;
-      case "drain": return 3;
-      case "amplify": return 3;
-      case "shield": return 1;
-      case "burst": return 4;
-      default: return 2;
-    }
-  };
-
-  const getCardDefenseByEffect = (effect: Card['radiationEffect']) => {
-    switch (effect) {
-      case "boost": return 3;
-      case "reduce": return 4;
-      case "drain": return 2;
-      case "amplify": return 2;
-      case "shield": return 5;
-      case "burst": return 1;
-      default: return 3;
-    }
-  };
-
-  const getCardAbilityByEffect = (effect: Card['radiationEffect']) => {
-    switch (effect) {
-      case "reduce": return "Reduce radiation by 1 when played";
-      case "amplify": return "Double all radiation effects";
-      case "shield": return "Reduces radiation damage by 1";
-      case "burst": return "Release stored radiation at level 5";
-      default: return undefined;
-    }
+  const calculateBoardControl = () => {
+    setGameState(prev => {
+      const newState = { ...prev };
+      const playerOccupiedSlots = newState.playerBoard.filter(card => card !== null).length;
+      const opponentOccupiedSlots = newState.opponentBoard.filter(card => card !== null).length;
+      
+      // Check for board control victory conditions
+      if (playerOccupiedSlots >= 4 && playerOccupiedSlots > opponentOccupiedSlots * 2) {
+        newState.isGameOver = true;
+        newState.winner = 'player';
+        toast.success("Victory through board control!");
+      } else if (opponentOccupiedSlots >= 4 && opponentOccupiedSlots > playerOccupiedSlots * 2) {
+        newState.isGameOver = true;
+        newState.winner = 'opponent';
+        toast.error("Defeat through board control!");
+      }
+      
+      return newState;
+    });
   };
 
   const drawCard = () => {
