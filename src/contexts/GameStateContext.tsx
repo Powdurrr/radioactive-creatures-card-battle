@@ -21,6 +21,8 @@ interface GameState {
   selectedBlocker: string | null;
   playerRadiation: number;
   opponentRadiation: number;
+  isGameOver: boolean;
+  winner: string | null;
 }
 
 interface GameStateContextType {
@@ -31,31 +33,58 @@ interface GameStateContextType {
   advancePhase: () => void;
   selectAttacker: (cardId: string) => void;
   selectBlocker: (cardId: string) => void;
+  resetGame: () => void;
 }
+
+const initialGameState: GameState = {
+  playerBoard: Array(5).fill(null),
+  playerHand: [
+    { id: 'hand-1', name: 'Baby Godzilla', attack: 2, defense: 3, stones: 0, isTransformed: false },
+    { id: 'hand-2', name: 'Baby Godzilla', attack: 2, defense: 3, stones: 0, isTransformed: false },
+    { id: 'stone-1', name: 'Stone', attack: 0, defense: 0, stones: 0, isTransformed: false },
+  ],
+  opponentBoard: [
+    { id: 'op-1', name: 'Baby Godzilla', attack: 2, defense: 3, stones: 0, isTransformed: false },
+    null,
+    { id: 'op-2', name: 'Baby Godzilla', attack: 2, defense: 3, stones: 0, isTransformed: false },
+    null,
+    null
+  ],
+  currentPhase: 'Draw',
+  selectedAttacker: null,
+  selectedBlocker: null,
+  playerRadiation: 0,
+  opponentRadiation: 0,
+  isGameOver: false,
+  winner: null
+};
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
 
 export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [gameState, setGameState] = useState<GameState>({
-    playerBoard: Array(5).fill(null),
-    playerHand: [
-      { id: 'hand-1', name: 'Baby Godzilla', attack: 2, defense: 3, stones: 0, isTransformed: false },
-      { id: 'hand-2', name: 'Baby Godzilla', attack: 2, defense: 3, stones: 0, isTransformed: false },
-      { id: 'stone-1', name: 'Stone', attack: 0, defense: 0, stones: 0, isTransformed: false },
-    ],
-    opponentBoard: [
-      { id: 'op-1', name: 'Baby Godzilla', attack: 2, defense: 3, stones: 0, isTransformed: false },
-      null,
-      { id: 'op-2', name: 'Baby Godzilla', attack: 2, defense: 3, stones: 0, isTransformed: false },
-      null,
-      null
-    ],
-    currentPhase: 'Draw',
-    selectedAttacker: null,
-    selectedBlocker: null,
-    playerRadiation: 0,
-    opponentRadiation: 0
-  });
+  const [gameState, setGameState] = useState<GameState>(initialGameState);
+
+  const resetGame = () => {
+    setGameState(initialGameState);
+  };
+
+  const checkWinCondition = (newState: GameState) => {
+    if (newState.playerRadiation >= 10) {
+      toast.error("Game Over - Opponent Wins!", {
+        description: "Your radiation levels reached critical mass!",
+        duration: 5000
+      });
+      newState.isGameOver = true;
+      newState.winner = "opponent";
+    } else if (newState.opponentRadiation >= 10) {
+      toast.success("Victory!", {
+        description: "Your opponent's radiation levels reached critical mass!",
+        duration: 5000
+      });
+      newState.isGameOver = true;
+      newState.winner = "player";
+    }
+  };
 
   const phases = [
     "Draw",
@@ -173,19 +202,19 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                   card?.id === prev.selectedBlocker ? null : card
                 );
               }
-            }
-          } else if (prev.selectedAttacker) {
-            // Direct attack with no blocker - remove a random opponent creature
-            const attacker = prev.playerBoard.find(card => card?.id === prev.selectedAttacker);
-            if (attacker) {
-              const occupiedSlots = newState.opponentBoard
-                .map((card, index) => card ? index : -1)
-                .filter(index => index !== -1);
-              
-              if (occupiedSlots.length > 0) {
-                const randomIndex = occupiedSlots[Math.floor(Math.random() * occupiedSlots.length)];
-                newState.opponentBoard[randomIndex] = null;
-                console.log(`Direct attack destroyed creature at position ${randomIndex + 1}`);
+            } else if (prev.selectedAttacker) {
+              // Direct attack with no blocker - remove a random opponent creature
+              const attacker = prev.playerBoard.find(card => card?.id === prev.selectedAttacker);
+              if (attacker) {
+                const occupiedSlots = newState.opponentBoard
+                  .map((card, index) => card ? index : -1)
+                  .filter(index => index !== -1);
+                
+                if (occupiedSlots.length > 0) {
+                  const randomIndex = occupiedSlots[Math.floor(Math.random() * occupiedSlots.length)];
+                  newState.opponentBoard[randomIndex] = null;
+                  console.log(`Direct attack destroyed creature at position ${randomIndex + 1}`);
+                }
               }
             }
           }
@@ -282,22 +311,6 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
-  const checkWinCondition = (newState: GameState) => {
-    if (newState.playerRadiation >= 10) {
-      toast.error("Game Over - Opponent Wins!", {
-        description: "Your radiation levels reached critical mass!",
-        duration: 5000
-      });
-      // Reset game state or implement game over screen
-    } else if (newState.opponentRadiation >= 10) {
-      toast.success("Victory!", {
-        description: "Your opponent's radiation levels reached critical mass!",
-        duration: 5000
-      });
-      // Reset game state or implement game over screen
-    }
-  };
-
   return (
     <GameStateContext.Provider value={{ 
       gameState, 
@@ -306,9 +319,13 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       transformCard,
       advancePhase,
       selectAttacker,
-      selectBlocker 
+      selectBlocker,
+      resetGame
     }}>
       {children}
+      {gameState.isGameOver && gameState.winner && (
+        <GameOverScreen winner={gameState.winner} />
+      )}
     </GameStateContext.Provider>
   );
 };
@@ -319,4 +336,13 @@ export const useGameState = () => {
     throw new Error('useGameState must be used within a GameStateProvider');
   }
   return context;
+};
+
+const GameOverScreen = ({ winner }: { winner: string }) => {
+  return (
+    <div>
+      <h1>Game Over</h1>
+      <p>The {winner} wins!</p>
+    </div>
+  );
 };
