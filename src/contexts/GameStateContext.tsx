@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { toast } from "sonner";
 
 interface Card {
   id: string;
@@ -122,12 +123,15 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const nextIndex = (currentIndex + 1) % phases.length;
       const nextPhase = phases[nextIndex];
       
-      // Apply phase-specific effects
       const newState = { ...prev, currentPhase: nextPhase };
       
       switch (nextPhase) {
         case 'Draw':
-          // Add a new card to hand at the start of turn
+          // Increment radiation counter at the start of each turn
+          newState.playerRadiation = Math.min(10, prev.playerRadiation + 1);
+          checkWinCondition(newState);
+          
+          // Add a new card to hand
           newState.playerHand = [
             ...newState.playerHand,
             { 
@@ -276,6 +280,22 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       
       return newState;
     });
+  };
+
+  const checkWinCondition = (newState: GameState) => {
+    if (newState.playerRadiation >= 10) {
+      toast.error("Game Over - Opponent Wins!", {
+        description: "Your radiation levels reached critical mass!",
+        duration: 5000
+      });
+      // Reset game state or implement game over screen
+    } else if (newState.opponentRadiation >= 10) {
+      toast.success("Victory!", {
+        description: "Your opponent's radiation levels reached critical mass!",
+        duration: 5000
+      });
+      // Reset game state or implement game over screen
+    }
   };
 
   return (
