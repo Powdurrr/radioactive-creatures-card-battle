@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from "react";
-import { Swords, Shield, Zap, BoltIcon } from "lucide-react";
+import { Swords, Shield, Zap, BoltIcon, RadioTower } from "lucide-react";
 
 interface CardProps {
   name?: string;
@@ -14,6 +13,7 @@ interface CardProps {
   radiationEffect?: "reduce" | "boost" | "drain" | "amplify" | "shield" | "burst";
   specialAbility?: string;
   onClick?: () => void;
+  radiationZone?: { type: "boost" | "drain" | "shield" };
 }
 
 export const Card = ({ 
@@ -26,12 +26,12 @@ export const Card = ({
   isBlocking = false,
   radiationEffect,
   specialAbility,
-  onClick 
-}: CardProps) => {
+  onClick,
+  radiationZone
+}: CardProps & { radiationZone?: { type: "boost" | "drain" | "shield" } }) => {
   const [isTransforming, setIsTransforming] = useState(false);
   const canTransform = stones >= 3 && !isTransformed;
   
-  // Handle transformation animation
   useEffect(() => {
     if (isTransformed) {
       setIsTransforming(true);
@@ -50,6 +50,21 @@ export const Card = ({
         return "after:absolute after:inset-0 after:bg-red-500/20 after:animate-ping";
       case "shield":
         return "before:absolute before:inset-0 before:bg-blue-500/20 before:animate-pulse";
+      default:
+        return "";
+    }
+  };
+
+  const getRadiationZoneClass = () => {
+    if (!radiationZone) return "";
+    
+    switch (radiationZone.type) {
+      case "boost":
+        return "after:absolute after:inset-0 after:bg-yellow-500/20 after:animate-pulse";
+      case "drain":
+        return "after:absolute after:inset-0 after:bg-red-500/20 after:animate-ping";
+      case "shield":
+        return "after:absolute after:inset-0 after:bg-blue-500/20 after:animate-pulse";
       default:
         return "";
     }
@@ -75,10 +90,10 @@ export const Card = ({
         ${isAttacking ? 'ring-2 ring-red-500' : ''}
         ${isBlocking ? 'ring-2 ring-blue-500' : ''}
         ${getRadiationComboClass()}
+        ${getRadiationZoneClass()}
         ${isTransforming ? 'animate-[glow_1s_ease-in-out] scale-125' : ''}
       `}>
         <div className="p-2 flex flex-col h-full relative overflow-hidden">
-          {/* Transformation effect overlay */}
           {isTransforming && (
             <div className="absolute inset-0 bg-primary/30 animate-pulse" />
           )}
@@ -102,7 +117,6 @@ export const Card = ({
           </div>
           
           <div className="flex-grow bg-gray-700/50 rounded-md relative">
-            {/* Stone indicators */}
             {stones > 0 && (
               <div className="absolute top-1 right-1 flex gap-1">
                 {[...Array(stones)].map((_, i) => (
@@ -117,7 +131,6 @@ export const Card = ({
               </div>
             )}
             
-            {/* Radiation combo effect indicator */}
             {radiationEffect === "amplify" && (
               <BoltIcon className="absolute bottom-1 right-1 w-6 h-6 text-yellow-400/50 animate-pulse" />
             )}

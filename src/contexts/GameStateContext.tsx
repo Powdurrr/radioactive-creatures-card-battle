@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState } from 'react';
 import { toast } from "sonner";
 
+interface RadiationZone {
+  index: number;
+  type: "boost" | "drain" | "shield";
+  duration: number;
+}
+
 interface Card {
   id: string;
   name: string;
@@ -30,17 +36,7 @@ interface GameState {
   opponentRadiation: number;
   isGameOver: boolean;
   winner: string | null;
-}
-
-interface GameStateContextType {
-  gameState: GameState;
-  attachStone: (sourceId: string, targetId: string) => void;
-  playCard: (cardId: string, zoneId: string) => void;
-  transformCard: (cardId: string) => void;
-  advancePhase: () => void;
-  selectAttacker: (cardId: string) => void;
-  selectBlocker: (cardId: string) => void;
-  resetGame: () => void;
+  radiationZones: RadiationZone[];
 }
 
 const initialGameState: GameState = {
@@ -109,7 +105,8 @@ const initialGameState: GameState = {
   playerRadiation: 0,
   opponentRadiation: 0,
   isGameOver: false,
-  winner: null
+  winner: null,
+  radiationZones: []
 };
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
@@ -445,32 +442,30 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       
       switch (nextPhase) {
         case 'Draw':
-          // Increment radiation counter at the start of each turn
+          // Apply radiation zone effects at the start of turn
+          applyRadiationZoneEffects(newState);
+          
+          // Increment radiation counter
           newState.playerRadiation = Math.min(10, prev.playerRadiation + 1);
+          
+          // Random chance to create new radiation zone
+          if (Math.random() < 0.3) { // 30% chance each turn
+            const availableSpots = newState.playerBoard
+              .map((card, index) => ({ card, index }))
+              .filter(({ card }) => card !== null)
+              .map(({ index }) => index);
+            
+            if (availableSpots.length > 0) {
+              const randomSpot = availableSpots[Math.floor(Math.random() * availableSpots.length)];
+              const zoneTypes: RadiationZone["type"][] = ["boost", "drain", "shield"];
+              const randomType = zoneTypes[Math.floor(Math.random() * zoneTypes.length)];
+              
+              createRadiationZone(randomSpot, randomType);
+            }
+          }
+          
           checkWinCondition(newState);
           checkRadiationTriggers(newState, prev);
-          
-          // Add a new card to hand with random radiation effects
-          const effects: Card['radiationEffect'][] = [
-            "boost", "reduce", "drain", "amplify", "shield", "burst"
-          ];
-          const randomEffect = effects[Math.floor(Math.random() * effects.length)];
-          
-          const newCard = { 
-            id: `hand-${Date.now()}`,
-            name: getCardNameByEffect(randomEffect),
-            attack: getCardAttackByEffect(randomEffect),
-            defense: getCardDefenseByEffect(randomEffect),
-            stones: 0,
-            isTransformed: false,
-            radiationEffect: randomEffect,
-            specialAbility: getCardAbilityByEffect(randomEffect),
-            ...(randomEffect === "boost" && {
-              transformRequirement: { radiation: 5, stones: 3 }
-            })
-          };
-          
-          newState.playerHand = [...newState.playerHand, newCard];
           break;
           
         case 'Recovery':
@@ -538,7 +533,58 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setGameState(initialGameState);
   };
 
-  // Helper functions for card generation
+  const applyRadiationZoneEffects = (newState: GameState) => {
+    newState.radiationZones.forEach(zone => {
+      const card = newState.playerBoard[zone.index];
+      if (!card) return;
+
+      switch (zone.type) {
+        case "boost":
+          if (card.radiationEffect === "boost") {
+            card.attack += 1;
+            toast.info(`${card.name} powered up by radiation zone!`);
+          }
+          break;
+        case "drain":
+          if (!card.isTransformed) {
+            newState.playerRadiation = Math.min(10, newState.playerRadiation + 1);
+            toast.warning(`Radiation zone affecting ${card.name}!`);
+          }
+          break;
+        case "shield":
+          if (card.radiationEffect === "shield") {
+            card.defense += 1;
+            toast.success(`${card.name} reinforced by radiation zone!`);
+          }
+          break;
+      }
+    });
+
+    // Update zone durations and remove expired zones
+    newState.radiationZones = newState.radiationZones
+      .map(zone => ({ ...zone, duration: zone.duration - 1 }))
+      .filter(zone => zone.duration > 0);
+  };
+
+  const createRadiationZone = (index: number, type: RadiationZone["type"]) => {
+    setGameState(prev => {
+      const newState = { ...prev };
+      
+      // Create new radiation zone
+      newState.radiationZones.push({
+        index,
+        type,
+        duration: 3 // Zones last for 3 turns
+      });
+
+      toast.info("Radiation Zone Created!", {
+        description: `A ${type} zone has appeared at position ${index + 1}`
+      });
+
+      return newState;
+    });
+  };
+
   const getCardNameByEffect = (effect: Card['radiationEffect']) => {
     switch (effect) {
       case "boost": return "Baby Godzilla";
