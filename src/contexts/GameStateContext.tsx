@@ -492,7 +492,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const adjacentCards = [
         index > 0 ? board[index - 1] : null,
         index < board.length - 1 ? board[index + 1] : null
-      ].filter((card): card is Card => card !== null);\
+      ].filter((card): card is Card => card !== null);
 
       const hasRequiredAdjacent = adjacentCards.some(
         adjacent => adjacent.radiationEffect && 
@@ -955,3 +955,18 @@ const useUltimateAbility = (cardId: string) => {
         newState.opponentBoard = newState.opponentBoard.map(c => 
           c?.isTransformed ? c : null
         );
+        break;
+    }
+    
+    card.ultimateAbility.currentCooldown = card.ultimateAbility.cooldown;
+    newState.playerRadiation -= card.ultimateAbility.cost;
+    
+    toast.success(`${card.name} uses ${card.ultimateAbility.name}!`, {
+      description: card.ultimateAbility.effect
+    });
+    
+    return newState;
+  });
+};
+
+export { GameStateProvider, useGameState };
