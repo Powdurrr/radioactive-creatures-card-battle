@@ -59,7 +59,15 @@ interface GameState {
   isGameOver: boolean;
   winner: string | null;
   radiationZones: RadiationZone[];
+  // New: Field events
+  activeEvents: FieldEvent[];
 }
+
+type FieldEvent = {
+  type: "meteor" | "meltdown" | "storm" | "powerSurge";
+  duration: number;
+  effect: (state: GameState) => void;
+};
 
 const getCardNameByEffect = (effect: Card['radiationEffect']): string => {
   switch (effect) {
@@ -174,7 +182,8 @@ const initialGameState: GameState = {
   opponentRadiation: 0,
   isGameOver: false,
   winner: null,
-  radiationZones: []
+  radiationZones: [],
+  activeEvents: []
 };
 
 const phases = ['Draw', 'Recovery', 'Initiative', 'Attack', 'Block', 'Damage'];
@@ -690,24 +699,43 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         
         newState.playerRadiation = Math.min(10, prev.playerRadiation + 1);
         
-        if (Math.random() < 0.3) {
-          const availableSpots = newState.playerBoard
+        // New: AI opponent decision making
+        if (newState.opponentBoard.some(card => card === null)) {
+          const emptySpots = newState.opponentBoard
             .map((card, index) => ({ card, index }))
-            .filter(({ card }) => card !== null)
+            .filter(({ card }) => card === null)
             .map(({ index }) => index);
           
-          if (availableSpots.length > 0) {
-            const randomSpot = availableSpots[Math.floor(Math.random() * availableSpots.length)];
-            const zoneTypes: RadiationZone["type"][] = ["boost", "drain", "shield"];
-            const randomType = zoneTypes[Math.floor(Math.random() * zoneTypes.length)];
+          // AI tries to maintain board control
+          if (emptySpots.length > 0) {
+            const playerBoardStrength = calculateBoardStrength(newState.playerBoard);
+            const opponentBoardStrength = calculateBoardStrength(newState.opponentBoard);
             
-            createRadiationZone(randomSpot, randomType);
+            if (opponentBoardStrength < playerBoardStrength) {
+              // Deploy stronger creatures in response to player's board
+              const randomSpot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
+              const newCard = createAICard(newState.playerRadiation, playerBoardStrength);
+              newState.opponentBoard[randomSpot] = newCard;
+              
+              toast.warning("Opponent deploys a new creature!", {
+                description: `${newCard.name} appears on the field`
+              });
+            }
           }
         }
         
-        calculateBoardControl();
-        checkWinCondition(newState);
-        checkRadiationTriggers(newState, prev);
+        // New: Random field events
+        if (Math.random() < 0.2) {  // 20% chance each turn
+          triggerRandomFieldEvent(newState);
+        }
+        
+        // Process active events
+        newState.activeEvents = newState.activeEvents.map(event => {
+          event.effect(newState);
+          return { ...event, duration: event.duration - 1 };
+        }).filter(event => event.duration > 0);
+        
+        // ... keep existing code (radiation zones, board control, etc.)
       }
       
       return newState;
@@ -765,6 +793,120 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
 
       return newState;
+    });
+  };
+
+  const calculateBoardStrength = (board: (Card | null)[]) => {
+    return board.reduce((total, card) => {
+      if (!card) return total;
+      const power = card.isTransformed ? 
+        (card.attack * 2 + Math.floor(card.defense * 1.5)) : 
+        (card.attack + card.defense);
+      return total + power;
+    }, 0);
+  };
+
+  const createAICard = (playerRadiation: number, playerBoardStrength: number): Card => {
+    // AI adapts its card creation based on game state
+    const effects: Card['radiationEffect'][] = ["boost", "drain", "shield", "burst"];
+    let selectedEffect: Card['radiationEffect'];
+    
+    if (playerRadiation >= 8) {
+      // Player has high radiation - focus on drain and shield
+      selectedEffect = Math.random() < 0.6 ? "drain" : "shield";
+    } else if (playerBoardStrength > 15) {
+      // Player has strong board - focus on burst and boost
+      selectedEffect = Math.random() < 0.7 ? "burst" : "boost";
+    } else {
+      // Balanced approach
+      selectedEffect = effects[Math.floor(Math.random() * effects.length)];
+    }
+    
+    return {
+      id: `ai-${Date.now()}`,
+      name: getCardNameByEffect(selectedEffect),
+      attack: getCardAttackByEffect(selectedEffect),
+      defense: getCardDefenseByEffect(selectedEffect),
+      stones: 0,
+      isTransformed: false,
+      radiationEffect: selectedEffect
+    };
+  };
+
+  const triggerRandomFieldEvent = (state: GameState) => {
+    const events: FieldEvent[] = [
+      {
+        type: "meteor",
+        duration: 2,
+        effect: (state) => {
+          state.playerRadiation = Math.min(10, state.playerRadiation + 1);
+          state.opponentRadiation = Math.min(10, state.opponentRadiation + 1);
+          toast.error("Radiation Meteor Impact!", {
+            description: "Radiation levels rising for both players"
+          });
+        }
+      },
+      {
+        type: "meltdown",
+        duration: 3,
+        effect: (state) => {
+          state.playerBoard.forEach(card => {
+            if (card && !card.isTransformed && card.radiationEffect === "boost") {
+              card.attack += 1;
+            }
+          });
+          state.opponentBoard.forEach(card => {
+            if (card && !card.isTransformed && card.radiationEffect === "boost") {
+              card.attack += 1;
+            }
+          });
+          toast.warning("Radiation Meltdown!", {
+            description: "Boost creatures gain increased power"
+          });
+        }
+      },
+      {
+        type: "storm",
+        duration: 2,
+        effect: (state) => {
+          const randomIndex = Math.floor(Math.random() * 5);
+          if (state.playerBoard[randomIndex]) {
+            state.playerBoard[randomIndex] = null;
+          }
+          if (state.opponentBoard[randomIndex]) {
+            state.opponentBoard[randomIndex] = null;
+          }
+          toast.error("Radiation Storm!", {
+            description: "Random creatures are destroyed"
+          });
+        }
+      },
+      {
+        type: "powerSurge",
+        duration: 1,
+        effect: (state) => {
+          state.playerBoard.forEach(card => {
+            if (card?.isTransformed) {
+              card.defense += 1;
+            }
+          });
+          state.opponentBoard.forEach(card => {
+            if (card?.isTransformed) {
+              card.defense += 1;
+            }
+          });
+          toast.success("Power Surge!", {
+            description: "All transformed creatures gain +1 defense"
+          });
+        }
+      }
+    ];
+
+    const event = events[Math.floor(Math.random() * events.length)];
+    state.activeEvents.push(event);
+    
+    toast.info(`Field Event: ${event.type}`, {
+      description: "A new environmental effect has begun!"
     });
   };
 
