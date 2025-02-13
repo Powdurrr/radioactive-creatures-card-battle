@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState } from 'react';
 
 interface Card {
@@ -19,8 +18,6 @@ interface GameState {
   currentPhase: string;
   selectedAttacker: string | null;
   selectedBlocker: string | null;
-  playerLife: number;
-  opponentLife: number;
 }
 
 interface GameStateContextType {
@@ -34,8 +31,6 @@ interface GameStateContextType {
 }
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
-
-const INITIAL_LIFE_POINTS = 20;
 
 export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [gameState, setGameState] = useState<GameState>({
@@ -54,9 +49,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     ],
     currentPhase: 'Draw',
     selectedAttacker: null,
-    selectedBlocker: null,
-    playerLife: INITIAL_LIFE_POINTS,
-    opponentLife: INITIAL_LIFE_POINTS
+    selectedBlocker: null
   });
 
   const phases = [
@@ -73,12 +66,12 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const attackerPower = attacker.isTransformed ? attacker.attack * 2 : attacker.attack;
     const blockerDefense = blocker.isTransformed ? Math.floor(blocker.defense * 1.5) : blocker.defense;
     
-    // Calculate damage
-    const damage = Math.max(0, attackerPower - blockerDefense);
+    // Check if the creature is destroyed
+    const isDestroyed = attackerPower >= blockerDefense;
     console.log(`Combat Result: ${attacker.name} (${attackerPower}) vs ${blocker.name} (${blockerDefense})`);
-    console.log(`Damage dealt: ${damage}`);
+    console.log(`Creature ${isDestroyed ? 'destroyed' : 'survived'}`);
     
-    return damage;
+    return isDestroyed;
   };
 
   const selectAttacker = (cardId: string) => {
@@ -165,26 +158,26 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             const blocker = prev.opponentBoard.find(card => card?.id === prev.selectedBlocker);
             
             if (attacker && blocker) {
-              const damage = resolveCombat(attacker, blocker);
-              newState.opponentLife = Math.max(0, prev.opponentLife - damage);
-              
-              // Check for game over
-              if (newState.opponentLife <= 0) {
-                console.log("Game Over - Player Wins!");
-                // You could trigger a game over state here
+              const isDestroyed = resolveCombat(attacker, blocker);
+              if (isDestroyed) {
+                // Remove the destroyed creature
+                newState.opponentBoard = newState.opponentBoard.map(card =>
+                  card?.id === prev.selectedBlocker ? null : card
+                );
               }
             }
           } else if (prev.selectedAttacker) {
-            // Direct attack if no blocker
+            // Direct attack with no blocker - remove a random opponent creature
             const attacker = prev.playerBoard.find(card => card?.id === prev.selectedAttacker);
             if (attacker) {
-              const damage = attacker.isTransformed ? attacker.attack * 2 : attacker.attack;
-              newState.opponentLife = Math.max(0, prev.opponentLife - damage);
-              console.log(`Direct attack for ${damage} damage!`);
+              const occupiedSlots = newState.opponentBoard
+                .map((card, index) => card ? index : -1)
+                .filter(index => index !== -1);
               
-              if (newState.opponentLife <= 0) {
-                console.log("Game Over - Player Wins!");
-                // You could trigger a game over state here
+              if (occupiedSlots.length > 0) {
+                const randomIndex = occupiedSlots[Math.floor(Math.random() * occupiedSlots.length)];
+                newState.opponentBoard[randomIndex] = null;
+                console.log(`Direct attack destroyed creature at position ${randomIndex + 1}`);
               }
             }
           }
