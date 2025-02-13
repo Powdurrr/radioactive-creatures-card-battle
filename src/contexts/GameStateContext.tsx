@@ -170,6 +170,8 @@ const initialGameState: GameState = {
   radiationZones: []
 };
 
+const phases = ['Draw', 'Recovery', 'Initiative', 'Attack', 'Block', 'Damage'];
+
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
 
 export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -585,14 +587,13 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (nextPhase === 'Draw') {
         setTurnCount(turnCount + 1);
         
-        // Draw phase mechanics
-        if (newState.playerHand.length < 5) {  // Maximum hand size
+        if (newState.playerHand.length < 5) {
           drawCard();
         }
         
         newState.playerRadiation = Math.min(10, prev.playerRadiation + 1);
         
-        if (Math.random() < 0.3) {  // 30% chance for radiation zone
+        if (Math.random() < 0.3) {
           const availableSpots = newState.playerBoard
             .map((card, index) => ({ card, index }))
             .filter(({ card }) => card !== null)
@@ -607,61 +608,9 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         }
         
+        calculateBoardControl();
         checkWinCondition(newState);
         checkRadiationTriggers(newState, prev);
-      }
-      
-      switch (nextPhase) {
-        case 'Recovery':
-          newState.playerBoard = newState.playerBoard.map(card => {
-            if (card && card.stones >= 3 && !card.isTransformed) {
-              return {
-                ...card,
-                isTransformed: true,
-                name: card.name.replace('Baby ', '')
-              };
-            }
-            return card;
-          });
-          break;
-
-        case 'Damage':
-          if (prev.selectedAttacker && prev.selectedBlocker) {
-            const attacker = prev.playerBoard.find(card => card?.id === prev.selectedAttacker);
-            const blocker = prev.opponentBoard.find(card => card?.id === prev.selectedBlocker);
-            
-            if (attacker && blocker) {
-              const isDestroyed = resolveCombat(attacker, blocker);
-              if (isDestroyed) {
-                newState.opponentBoard = newState.opponentBoard.map(card =>
-                  card?.id === prev.selectedBlocker ? null : card
-                );
-              }
-            } else if (prev.selectedAttacker) {
-              const attacker = prev.playerBoard.find(card => card?.id === prev.selectedAttacker);
-              if (attacker) {
-                const occupiedSlots = newState.opponentBoard
-                  .map((card, index) => card ? index : -1)
-                  .filter(index => index !== -1);
-                
-                if (occupiedSlots.length > 0) {
-                  const randomIndex = occupiedSlots[Math.floor(Math.random() * occupiedSlots.length)];
-                  newState.opponentBoard[randomIndex] = null;
-                  console.log(`Direct attack destroyed creature at position ${randomIndex + 1}`);
-                }
-              }
-            }
-          }
-          
-          newState.selectedAttacker = null;
-          newState.selectedBlocker = null;
-          newState.playerBoard = newState.playerBoard.map(card => 
-            card ? { ...card, isAttacking: false } : null
-          );
-          newState.opponentBoard = newState.opponentBoard.map(card =>
-            card ? { ...card, isBlocking: false } : null
-          );
-          break;
       }
       
       return newState;
@@ -728,7 +677,6 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const playerOccupiedSlots = newState.playerBoard.filter(card => card !== null).length;
       const opponentOccupiedSlots = newState.opponentBoard.filter(card => card !== null).length;
       
-      // Check for board control victory conditions
       if (playerOccupiedSlots >= 4 && playerOccupiedSlots > opponentOccupiedSlots * 2) {
         newState.isGameOver = true;
         newState.winner = 'player';
@@ -764,6 +712,49 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       toast.success(`Drew ${drawnCard.name}!`, {
         description: drawnCard.specialAbility || `A ${drawnCard.radiationEffect} type card`
       });
+      
+      return newState;
+    });
+  };
+
+  const checkWinCondition = (state: GameState) => {
+    if (state.opponentRadiation >= 10) {
+      state.isGameOver = true;
+      state.winner = 'player';
+      toast.success("Victory! Opponent overloaded with radiation!");
+    } else if (state.playerRadiation >= 10) {
+      state.isGameOver = true;
+      state.winner = 'opponent';
+      toast.error("Defeat! Your radiation levels are critical!");
+    }
+    
+    const playerHasCreatures = state.playerBoard.some(card => card !== null);
+    const opponentHasCreatures = state.opponentBoard.some(card => card !== null);
+    
+    if (!playerHasCreatures && state.playerHand.length === 0) {
+      state.isGameOver = true;
+      state.winner = 'opponent';
+      toast.error("Defeat! You have no creatures left!");
+    } else if (!opponentHasCreatures) {
+      state.isGameOver = true;
+      state.winner = 'player';
+      toast.success("Victory! You've cleared the opponent's board!");
+    }
+  };
+
+  const attachStone = (sourceId: string, targetId: string) => {
+    setGameState(prev => {
+      const newState = { ...prev };
+      const targetCard = newState.playerBoard.find(card => 
+        card?.id === targetId
+      );
+      
+      if (targetCard) {
+        targetCard.stones += 1;
+        toast.success(`Added stone to ${targetCard.name}!`, {
+          description: `Now has ${targetCard.stones} stones`
+        });
+      }
       
       return newState;
     });
