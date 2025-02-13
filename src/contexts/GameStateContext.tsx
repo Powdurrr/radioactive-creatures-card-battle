@@ -189,6 +189,69 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return board.some(card => card?.radiationEffect === "amplify");
   };
 
+  const resolveCombat = (attacker: Card, blocker: Card) => {
+    const attackerBonus = calculateRadiationBonus(gameState.playerRadiation, hasAmplifierOnBoard(gameState.playerBoard));
+    const blockerBonus = calculateRadiationBonus(gameState.opponentRadiation, hasAmplifierOnBoard(gameState.opponentBoard));
+    
+    let attackerPower = attacker.isTransformed ? attacker.attack * 2 : attacker.attack;
+    let blockerDefense = blocker.isTransformed ? Math.floor(blocker.defense * 1.5) : blocker.defense;
+    
+    // Apply radiation bonuses
+    if (attacker.radiationEffect === "boost") {
+      attackerPower += attackerBonus;
+    }
+    if (blocker.radiationEffect === "boost") {
+      blockerDefense += blockerBonus;
+    }
+    
+    // New: Combat chain effects
+    if (attacker.radiationEffect === "burst" && gameState.playerRadiation >= 5) {
+      attackerPower += Math.floor(gameState.playerRadiation / 2);
+      toast.success("Radiation Burst boost activated!");
+    }
+
+    // New: Shield break mechanics
+    if (attacker.radiationEffect === "drain" && blocker.radiationEffect === "shield") {
+      attackerPower += 2;
+      toast.warning("Shield break bonus activated!");
+    }
+
+    // New: Combo attack bonus
+    const adjacentAttackers = gameState.playerBoard.filter((card, index) => {
+      const attackerIndex = gameState.playerBoard.findIndex(c => c?.id === attacker.id);
+      return card?.isAttacking && Math.abs(index - attackerIndex) === 1;
+    });
+    
+    if (adjacentAttackers.length > 0) {
+      const comboBonus = adjacentAttackers.length;
+      attackerPower += comboBonus;
+      toast.success(`Combo Attack! +${comboBonus} power`);
+    }
+
+    const isDestroyed = attackerPower >= blockerDefense;
+    console.log(`Combat Result: ${attacker.name} (${attackerPower}) vs ${blocker.name} (${blockerDefense})`);
+    console.log(`Creature ${isDestroyed ? 'destroyed' : 'survived'}`);
+    
+    if (isDestroyed) {
+      // New: Chain destruction effect
+      if (blocker.radiationEffect === "burst") {
+        gameState.opponentRadiation = Math.min(10, gameState.opponentRadiation + 2);
+        toast.warning("Destroyed creature releases stored radiation!");
+      }
+    } else {
+      // New: Counter-attack mechanics
+      if (blocker.attack > attacker.defense && blocker.radiationEffect === "drain") {
+        setGameState(prev => ({
+          ...prev,
+          playerRadiation: Math.min(10, prev.playerRadiation + 1)
+        }));
+        toast.error("Counter-attack increases your radiation!");
+      }
+    }
+    
+    return isDestroyed;
+  };
+
   const checkRadiationTriggers = (newState: GameState, previousState: GameState) => {
     const hasShield = newState.playerBoard.some(card => card?.radiationEffect === "shield");
     const radiation = newState.playerRadiation;
@@ -225,84 +288,6 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       newState.playerRadiation--;
       toast.success("Radiation Shield absorbed 1 radiation!");
     }
-  };
-
-  const resolveCombat = (attacker: Card, blocker: Card) => {
-    const attackerBonus = calculateRadiationBonus(gameState.playerRadiation, hasAmplifierOnBoard(gameState.playerBoard));
-    const blockerBonus = calculateRadiationBonus(gameState.opponentRadiation, hasAmplifierOnBoard(gameState.opponentBoard));
-    
-    let attackerPower = attacker.isTransformed ? attacker.attack * 2 : attacker.attack;
-    let blockerDefense = blocker.isTransformed ? Math.floor(blocker.defense * 1.5) : blocker.defense;
-    
-    // Apply radiation bonuses
-    if (attacker.radiationEffect === "boost") {
-      attackerPower += attackerBonus;
-    }
-    if (blocker.radiationEffect === "boost") {
-      blockerDefense += blockerBonus;
-    }
-    
-    const isDestroyed = attackerPower >= blockerDefense;
-    console.log(`Combat Result: ${attacker.name} (${attackerPower}) vs ${blocker.name} (${blockerDefense})`);
-    console.log(`Creature ${isDestroyed ? 'destroyed' : 'survived'}`);
-    
-    return isDestroyed;
-  };
-
-  const checkWinCondition = (newState: GameState) => {
-    if (newState.playerRadiation >= 10) {
-      toast.error("Game Over - Opponent Wins!", {
-        description: "Your radiation levels reached critical mass!",
-        duration: 5000
-      });
-      newState.isGameOver = true;
-      newState.winner = "opponent";
-    } else if (newState.opponentRadiation >= 10) {
-      toast.success("Victory!", {
-        description: "Your opponent's radiation levels reached critical mass!",
-        duration: 5000
-      });
-      newState.isGameOver = true;
-      newState.winner = "player";
-    }
-  };
-
-  const phases = [
-    "Draw",
-    "Initiative",
-    "Attack",
-    "Block",
-    "Damage",
-    "Recovery",
-    "End"
-  ];
-
-  const attachStone = (sourceId: string, targetId: string) => {
-    if (gameState.currentPhase !== 'Initiative') {
-      console.log('Stones can only be attached during Initiative phase');
-      return;
-    }
-
-    setGameState(prev => {
-      const newState = { ...prev };
-      
-      // Find the target card and update its stone count
-      for (let i = 0; i < newState.playerBoard.length; i++) {
-        const card = newState.playerBoard[i];
-        if (card?.id === targetId) {
-          newState.playerBoard[i] = {
-            ...card,
-            stones: card.stones + 1
-          };
-          break;
-        }
-      }
-      
-      // Remove the stone card from hand
-      newState.playerHand = newState.playerHand.filter(card => card.id !== sourceId);
-      
-      return newState;
-    });
   };
 
   const checkTransformationRequirements = (
@@ -536,17 +521,38 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return;
     }
 
-    setGameState(prev => ({
-      ...prev,
-      selectedAttacker: cardId,
-      playerBoard: prev.playerBoard.map(card => 
-        card?.id === cardId 
-          ? { ...card, isAttacking: true }
-          : card?.isAttacking 
-            ? { ...card, isAttacking: false }
-            : card
-      )
-    }));
+    setGameState(prev => {
+      const newState = { ...prev };
+      
+      // New: Check for chain attack possibility
+      const selectedCard = prev.playerBoard.find(card => card?.id === cardId);
+      const adjacentCards = prev.playerBoard.filter((card, index) => {
+        const selectedIndex = prev.playerBoard.findIndex(c => c?.id === cardId);
+        return card && Math.abs(index - selectedIndex) === 1;
+      });
+
+      const canChainAttack = adjacentCards.some(card => 
+        card?.radiationEffect === selectedCard?.radiationEffect
+      );
+
+      if (canChainAttack) {
+        toast.info("Chain Attack Available!", {
+          description: "Adjacent creatures can join the attack"
+        });
+      }
+
+      return {
+        ...newState,
+        selectedAttacker: cardId,
+        playerBoard: prev.playerBoard.map(card => 
+          card?.id === cardId 
+            ? { ...card, isAttacking: true }
+            : card?.isAttacking 
+              ? { ...card, isAttacking: false }
+              : card
+        )
+      };
+    });
   };
 
   const selectBlocker = (cardId: string) => {
