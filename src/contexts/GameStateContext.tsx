@@ -22,6 +22,7 @@ interface GameStateContextType {
   attachStone: (sourceId: string, targetId: string) => void;
   playCard: (cardId: string, zoneId: string) => void;
   transformCard: (cardId: string) => void;
+  advancePhase: () => void;
 }
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
@@ -35,8 +36,33 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       { id: 'stone-1', name: 'Stone', attack: 0, defense: 0, stones: 0, isTransformed: false },
     ],
     opponentBoard: Array(5).fill(null),
-    currentPhase: 'Initiative',
+    currentPhase: 'Draw',
   });
+
+  const phases = [
+    "Draw",
+    "Initiative",
+    "Attack",
+    "Block",
+    "Damage",
+    "Recovery",
+    "End"
+  ];
+
+  const advancePhase = () => {
+    setGameState(prev => {
+      const currentIndex = phases.indexOf(prev.currentPhase);
+      const nextIndex = (currentIndex + 1) % phases.length;
+      
+      // Reset to Draw phase if we were in End phase
+      const nextPhase = phases[nextIndex];
+      
+      return {
+        ...prev,
+        currentPhase: nextPhase
+      };
+    });
+  };
 
   const attachStone = (sourceId: string, targetId: string) => {
     setGameState(prev => {
@@ -97,7 +123,13 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   return (
-    <GameStateContext.Provider value={{ gameState, attachStone, playCard, transformCard }}>
+    <GameStateContext.Provider value={{ 
+      gameState, 
+      attachStone, 
+      playCard, 
+      transformCard,
+      advancePhase 
+    }}>
       {children}
     </GameStateContext.Provider>
   );

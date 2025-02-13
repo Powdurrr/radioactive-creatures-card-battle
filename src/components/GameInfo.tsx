@@ -3,7 +3,7 @@ import React from "react";
 import { useGameState } from "../contexts/GameStateContext";
 
 export const GameInfo = () => {
-  const { gameState } = useGameState();
+  const { gameState, advancePhase } = useGameState();
 
   return (
     <div className="
@@ -15,7 +15,10 @@ export const GameInfo = () => {
       <div className="flex flex-col items-center gap-2">
         <h2 className="text-lg font-medium">{gameState.currentPhase} Phase</h2>
         <div className="flex gap-4">
-          <button className="px-4 py-2 rounded-md bg-primary text-white hover:bg-primary-hover transition-colors">
+          <button 
+            onClick={advancePhase}
+            className="px-4 py-2 rounded-md bg-primary text-white hover:bg-primary-hover transition-colors"
+          >
             End Phase
           </button>
         </div>
