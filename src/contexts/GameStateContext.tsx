@@ -18,6 +18,8 @@ interface GameState {
   currentPhase: string;
   selectedAttacker: string | null;
   selectedBlocker: string | null;
+  playerRadiation: number;
+  opponentRadiation: number;
 }
 
 interface GameStateContextType {
@@ -49,7 +51,9 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     ],
     currentPhase: 'Draw',
     selectedAttacker: null,
-    selectedBlocker: null
+    selectedBlocker: null,
+    playerRadiation: 0,
+    opponentRadiation: 0
   });
 
   const phases = [
