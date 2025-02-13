@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Swords, Shield } from "lucide-react";
+import { Swords, Shield, Zap } from "lucide-react";
 
 interface CardProps {
   name?: string;
@@ -11,6 +11,8 @@ interface CardProps {
   isTransformed?: boolean;
   isAttacking?: boolean;
   isBlocking?: boolean;
+  radiationEffect?: "reduce" | "boost" | "drain";
+  specialAbility?: string;
   onClick?: () => void;
 }
 
@@ -22,6 +24,8 @@ export const Card = ({
   isTransformed = false,
   isAttacking = false,
   isBlocking = false,
+  radiationEffect,
+  specialAbility,
   onClick 
 }: CardProps) => {
   const canTransform = stones >= 3 && !isTransformed;
@@ -50,6 +54,13 @@ export const Card = ({
             <span>{name}</span>
             {isAttacking && <Swords className="w-4 h-4 text-red-500" />}
             {isBlocking && <Shield className="w-4 h-4 text-blue-500" />}
+            {radiationEffect && (
+              <Zap className={`w-4 h-4 ${
+                radiationEffect === "boost" ? "text-yellow-400" :
+                radiationEffect === "reduce" ? "text-blue-400" :
+                "text-red-400"
+              }`} />
+            )}
           </div>
           <div className="flex-grow bg-gray-700/50 rounded-md relative">
             {/* Stone indicators */}
@@ -72,6 +83,11 @@ export const Card = ({
               DEF: {isTransformed ? defense * 1.5 : defense}
             </span>
           </div>
+          {specialAbility && (
+            <div className="text-[10px] text-blue-400/90 mt-1 text-center">
+              {specialAbility}
+            </div>
+          )}
         </div>
       </div>
     </div>

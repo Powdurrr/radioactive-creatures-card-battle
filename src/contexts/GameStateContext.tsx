@@ -10,6 +10,9 @@ interface Card {
   isTransformed: boolean;
   isAttacking?: boolean;
   isBlocking?: boolean;
+  radiationCost?: number;
+  radiationEffect?: "reduce" | "boost" | "drain";
+  specialAbility?: string;
 }
 
 interface GameState {
@@ -39,14 +42,54 @@ interface GameStateContextType {
 const initialGameState: GameState = {
   playerBoard: Array(5).fill(null),
   playerHand: [
-    { id: 'hand-1', name: 'Baby Godzilla', attack: 2, defense: 3, stones: 0, isTransformed: false },
-    { id: 'hand-2', name: 'Baby Godzilla', attack: 2, defense: 3, stones: 0, isTransformed: false },
-    { id: 'stone-1', name: 'Stone', attack: 0, defense: 0, stones: 0, isTransformed: false },
+    { 
+      id: 'hand-1', 
+      name: 'Baby Godzilla', 
+      attack: 2, 
+      defense: 3, 
+      stones: 0, 
+      isTransformed: false,
+      radiationEffect: "boost"
+    },
+    { 
+      id: 'hand-2', 
+      name: 'Radiation Absorber', 
+      attack: 1, 
+      defense: 4, 
+      stones: 0, 
+      isTransformed: false,
+      radiationEffect: "reduce",
+      specialAbility: "Reduce radiation by 1 when played"
+    },
+    { 
+      id: 'stone-1', 
+      name: 'Stone', 
+      attack: 0, 
+      defense: 0, 
+      stones: 0, 
+      isTransformed: false 
+    },
   ],
   opponentBoard: [
-    { id: 'op-1', name: 'Baby Godzilla', attack: 2, defense: 3, stones: 0, isTransformed: false },
+    { 
+      id: 'op-1', 
+      name: 'Radiation Drainer', 
+      attack: 3, 
+      defense: 2, 
+      stones: 0, 
+      isTransformed: false,
+      radiationEffect: "drain"
+    },
     null,
-    { id: 'op-2', name: 'Baby Godzilla', attack: 2, defense: 3, stones: 0, isTransformed: false },
+    { 
+      id: 'op-2', 
+      name: 'Baby Godzilla', 
+      attack: 2, 
+      defense: 3, 
+      stones: 0, 
+      isTransformed: false,
+      radiationEffect: "boost"
+    },
     null,
     null
   ],
@@ -64,8 +107,33 @@ const GameStateContext = createContext<GameStateContextType | undefined>(undefin
 export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
 
-  const resetGame = () => {
-    setGameState(initialGameState);
+  const calculateRadiationBonus = (radiation: number) => {
+    if (radiation >= 8) return 3;
+    if (radiation >= 5) return 2;
+    if (radiation >= 3) return 1;
+    return 0;
+  };
+
+  const resolveCombat = (attacker: Card, blocker: Card) => {
+    const attackerBonus = calculateRadiationBonus(gameState.playerRadiation);
+    const blockerBonus = calculateRadiationBonus(gameState.opponentRadiation);
+    
+    let attackerPower = attacker.isTransformed ? attacker.attack * 2 : attacker.attack;
+    let blockerDefense = blocker.isTransformed ? Math.floor(blocker.defense * 1.5) : blocker.defense;
+    
+    // Apply radiation bonuses
+    if (attacker.radiationEffect === "boost") {
+      attackerPower += attackerBonus;
+    }
+    if (blocker.radiationEffect === "boost") {
+      blockerDefense += blockerBonus;
+    }
+    
+    const isDestroyed = attackerPower >= blockerDefense;
+    console.log(`Combat Result: ${attacker.name} (${attackerPower}) vs ${blocker.name} (${blockerDefense})`);
+    console.log(`Creature ${isDestroyed ? 'destroyed' : 'survived'}`);
+    
+    return isDestroyed;
   };
 
   const checkWinCondition = (newState: GameState) => {
@@ -96,16 +164,94 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     "End"
   ];
 
-  const resolveCombat = (attacker: Card, blocker: Card) => {
-    const attackerPower = attacker.isTransformed ? attacker.attack * 2 : attacker.attack;
-    const blockerDefense = blocker.isTransformed ? Math.floor(blocker.defense * 1.5) : blocker.defense;
-    
-    // Check if the creature is destroyed
-    const isDestroyed = attackerPower >= blockerDefense;
-    console.log(`Combat Result: ${attacker.name} (${attackerPower}) vs ${blocker.name} (${blockerDefense})`);
-    console.log(`Creature ${isDestroyed ? 'destroyed' : 'survived'}`);
-    
-    return isDestroyed;
+  const attachStone = (sourceId: string, targetId: string) => {
+    if (gameState.currentPhase !== 'Initiative') {
+      console.log('Stones can only be attached during Initiative phase');
+      return;
+    }
+
+    setGameState(prev => {
+      const newState = { ...prev };
+      
+      // Find the target card and update its stone count
+      for (let i = 0; i < newState.playerBoard.length; i++) {
+        const card = newState.playerBoard[i];
+        if (card?.id === targetId) {
+          newState.playerBoard[i] = {
+            ...card,
+            stones: card.stones + 1
+          };
+          break;
+        }
+      }
+      
+      // Remove the stone card from hand
+      newState.playerHand = newState.playerHand.filter(card => card.id !== sourceId);
+      
+      return newState;
+    });
+  };
+
+  const playCard = (cardId: string, zoneId: string) => {
+    if (gameState.currentPhase !== 'Initiative') {
+      console.log('Cards can only be played during Initiative phase');
+      return;
+    }
+
+    setGameState(prev => {
+      const newState = { ...prev };
+      const zoneIndex = parseInt(zoneId.split('-')[1]);
+      const card = newState.playerHand.find(c => c.id === cardId);
+      
+      if (card && zoneIndex >= 0 && zoneIndex < 5) {
+        // Apply radiation effects when card is played
+        if (card.radiationEffect === "reduce") {
+          newState.playerRadiation = Math.max(0, newState.playerRadiation - 1);
+          toast.success(`${card.name} reduced your radiation by 1!`);
+        } else if (card.radiationEffect === "drain") {
+          const drainAmount = 1;
+          newState.opponentRadiation = Math.min(10, newState.opponentRadiation + drainAmount);
+          toast.success(`${card.name} increased opponent's radiation by ${drainAmount}!`);
+        }
+
+        // Apply special abilities based on radiation thresholds
+        if (newState.playerRadiation >= 5 && card.radiationEffect === "boost") {
+          toast.success("Radiation Surge: Attack power increased!", {
+            description: `${card.name} gains +${calculateRadiationBonus(newState.playerRadiation)} attack!`
+          });
+        }
+
+        newState.playerBoard[zoneIndex] = card;
+        newState.playerHand = newState.playerHand.filter(c => c.id !== cardId);
+      }
+      
+      return newState;
+    });
+  };
+
+  const transformCard = (cardId: string) => {
+    if (gameState.currentPhase !== 'Recovery') {
+      console.log('Transformations can only occur during Recovery phase');
+      return;
+    }
+
+    setGameState(prev => {
+      const newState = { ...prev };
+      
+      for (let i = 0; i < newState.playerBoard.length; i++) {
+        const card = newState.playerBoard[i];
+        if (card?.id === cardId && card.stones >= 3) {
+          newState.playerBoard[i] = {
+            ...card,
+            isTransformed: true,
+            name: card.name.replace('Baby ', ''),
+          };
+          break;
+        }
+      }
+      
+      return newState;
+    });
   };
 
   const selectAttacker = (cardId: string) => {
@@ -160,16 +306,22 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           newState.playerRadiation = Math.min(10, prev.playerRadiation + 1);
           checkWinCondition(newState);
           
-          // Add a new card to hand
+          // Add a new card to hand with random radiation effects
+          const effects: Card['radiationEffect'][] = ["boost", "reduce", "drain"];
+          const randomEffect = effects[Math.floor(Math.random() * effects.length)];
+          
           newState.playerHand = [
             ...newState.playerHand,
             { 
               id: `hand-${Date.now()}`, 
-              name: 'Baby Godzilla', 
-              attack: 2, 
-              defense: 3, 
+              name: randomEffect === "reduce" ? "Radiation Absorber" : 
+                   randomEffect === "drain" ? "Radiation Drainer" : "Baby Godzilla", 
+              attack: randomEffect === "drain" ? 3 : 2, 
+              defense: randomEffect === "reduce" ? 4 : 3, 
               stones: 0, 
-              isTransformed: false 
+              isTransformed: false,
+              radiationEffect: randomEffect,
+              specialAbility: randomEffect === "reduce" ? "Reduce radiation by 1 when played" : undefined
             }
           ];
           break;
@@ -235,80 +387,8 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
-  const attachStone = (sourceId: string, targetId: string) => {
-    // Only allow stone attachment during Initiative phase
-    if (gameState.currentPhase !== 'Initiative') {
-      console.log('Stones can only be attached during Initiative phase');
-      return;
-    }
-
-    setGameState(prev => {
-      const newState = { ...prev };
-      
-      // Find the target card and update its stone count
-      for (let i = 0; i < newState.playerBoard.length; i++) {
-        const card = newState.playerBoard[i];
-        if (card?.id === targetId) {
-          newState.playerBoard[i] = {
-            ...card,
-            stones: card.stones + 1
-          };
-          break;
-        }
-      }
-      
-      // Remove the stone card from hand
-      newState.playerHand = newState.playerHand.filter(card => card.id !== sourceId);
-      
-      return newState;
-    });
-  };
-
-  const playCard = (cardId: string, zoneId: string) => {
-    // Only allow playing cards during Initiative phase
-    if (gameState.currentPhase !== 'Initiative') {
-      console.log('Cards can only be played during Initiative phase');
-      return;
-    }
-
-    setGameState(prev => {
-      const newState = { ...prev };
-      const zoneIndex = parseInt(zoneId.split('-')[1]);
-      const card = newState.playerHand.find(c => c.id === cardId);
-      
-      if (card && zoneIndex >= 0 && zoneIndex < 5) {
-        newState.playerBoard[zoneIndex] = card;
-        newState.playerHand = newState.playerHand.filter(c => c.id !== cardId);
-      }
-      
-      return newState;
-    });
-  };
-
-  const transformCard = (cardId: string) => {
-    // Only allow transformations during Recovery phase
-    if (gameState.currentPhase !== 'Recovery') {
-      console.log('Transformations can only occur during Recovery phase');
-      return;
-    }
-
-    setGameState(prev => {
-      const newState = { ...prev };
-      
-      for (let i = 0; i < newState.playerBoard.length; i++) {
-        const card = newState.playerBoard[i];
-        if (card?.id === cardId && card.stones >= 3) {
-          newState.playerBoard[i] = {
-            ...card,
-            isTransformed: true,
-            name: card.name.replace('Baby ', ''),
-          };
-          break;
-        }
-      }
-      
-      return newState;
-    });
+  const resetGame = () => {
+    setGameState(initialGameState);
   };
 
   return (
