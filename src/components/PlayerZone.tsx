@@ -13,6 +13,13 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
     border border-gray-700/50
   `;
 
+  // Example cards with different states
+  const exampleCards = [
+    { name: "Baby Godzilla", attack: 2, defense: 3, stones: 0 },
+    { name: "Baby Godzilla", attack: 2, defense: 3, stones: 2 },
+    { name: "Godzilla", attack: 2, defense: 3, stones: 3, isTransformed: true },
+  ];
+
   return (
     <div className={zoneClasses}>
       <div className="flex flex-col gap-4">
@@ -22,7 +29,11 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
             <div
               key={i}
               className="border border-gray-600/30 rounded-lg h-full min-h-[140px]"
-            />
+            >
+              {i < exampleCards.length && !isOpponent && (
+                <Card {...exampleCards[i]} />
+              )}
+            </div>
           ))}
         </div>
         
