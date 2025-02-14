@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
 import { 
@@ -398,6 +397,13 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             createRadiationZone(randomIndex, randomType);
           }
         }
+
+        // Update ultimate ability cooldowns
+        newState.playerBoard.forEach(card => {
+          if (card?.ultimateAbility?.currentCooldown) {
+            card.ultimateAbility.currentCooldown--;
+          }
+        });
       }
       
       return {
