@@ -6,6 +6,7 @@ import { DroppableZone } from "./DroppableZone";
 import { useGameState } from "../contexts/GameStateContext";
 import { RadiationZone } from "./RadiationZone";
 import { motion } from "framer-motion";
+import { AttackMenu } from "./AttackMenu";
 
 interface PlayerZoneProps {
   isOpponent?: boolean;
@@ -38,15 +39,43 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
   };
 
   const handleCardClick = (cardId: string) => {
-    if (gameState.currentPhase === 'Attack' && !isOpponent) {
-      selectAttacker(cardId);
-    } else if (gameState.currentPhase === 'Block' && isOpponent) {
+    if (gameState.currentPhase === 'Block' && isOpponent) {
       selectBlocker(cardId);
     }
   };
 
   const board = isOpponent ? gameState.opponentBoard : gameState.playerBoard;
   const hand = isOpponent ? [] : gameState.playerHand;
+
+  const renderCard = (card: any, index: number) => {
+    if (!card) return null;
+
+    const cardElement = (
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <DraggableCard 
+          {...card} 
+          onClick={() => handleCardClick(card.id)}
+        />
+      </motion.div>
+    );
+
+    if (!isOpponent && gameState.currentPhase === 'Attack') {
+      return (
+        <AttackMenu
+          onAttack={() => selectAttacker(card.id)}
+          showAttackOption={true}
+        >
+          {cardElement}
+        </AttackMenu>
+      );
+    }
+
+    return cardElement;
+  };
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
@@ -62,7 +91,6 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
                   ${gameState.currentPhase === 'Attack' && !isOpponent ? 'hover:border-red-500/50 cursor-pointer' : ''}
                   ${gameState.currentPhase === 'Block' && isOpponent ? 'hover:border-blue-500/50 cursor-pointer' : ''}
                 `}
-                onClick={() => card && handleCardClick(card.id)}
               >
                 {gameState.radiationZones.find(zone => zone.index === i) && (
                   <RadiationZone 
@@ -70,18 +98,7 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
                     position={i}
                   />
                 )}
-                {card && (
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <DraggableCard 
-                      {...card} 
-                      onClick={() => handleCardClick(card.id)}
-                    />
-                  </motion.div>
-                )}
+                {card && renderCard(card, i)}
               </DroppableZone>
             ))}
           </div>
