@@ -24,17 +24,17 @@ export const GameBoard = () => {
             {/* Center Column - Game Board */}
             <div className="flex flex-col gap-6">
               {/* Opponent Zone - Fixed Height */}
-              <div className="h-[400px] min-h-[400px]">
+              <div className="h-[200px] min-h-[200px]">
                 <PlayerZone isOpponent />
               </div>
               
               {/* Center Zone */}
-              <div className="flex-grow flex justify-center items-center min-h-[100px]">
+              <div className="flex-grow flex justify-center items-center min-h-[60px]">
                 <GameInfo />
               </div>
               
               {/* Player Zone - Fixed Height */}
-              <div className="h-[600px] min-h-[600px]">
+              <div className="h-[200px] min-h-[200px]">
                 <PlayerZone />
               </div>
             </div>
