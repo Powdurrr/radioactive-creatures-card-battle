@@ -12,7 +12,7 @@ interface PlayerZoneProps {
 }
 
 export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
-  const { gameState, attachStone, playCard } = useGameState();
+  const { gameState, attachStone, playCard, selectAttacker, selectBlocker } = useGameState();
   
   const zoneClasses = `
     w-full p-4 rounded-lg
@@ -37,6 +37,14 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
     }
   };
 
+  const handleCardClick = (cardId: string) => {
+    if (gameState.currentPhase === 'Attack' && !isOpponent) {
+      selectAttacker(cardId);
+    } else if (gameState.currentPhase === 'Block' && isOpponent) {
+      selectBlocker(cardId);
+    }
+  };
+
   const board = isOpponent ? gameState.opponentBoard : gameState.playerBoard;
   const hand = isOpponent ? [] : gameState.playerHand;
 
@@ -51,9 +59,10 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
                 id={`zone-${i}`}
                 className={`
                   border border-gray-600/30 rounded-lg h-full min-h-[140px] relative
-                  ${gameState.currentPhase === 'Attack' && !isOpponent ? 'hover:border-red-500/50' : ''}
-                  ${gameState.currentPhase === 'Block' && isOpponent ? 'hover:border-blue-500/50' : ''}
+                  ${gameState.currentPhase === 'Attack' && !isOpponent ? 'hover:border-red-500/50 cursor-pointer' : ''}
+                  ${gameState.currentPhase === 'Block' && isOpponent ? 'hover:border-blue-500/50 cursor-pointer' : ''}
                 `}
+                onClick={() => card && handleCardClick(card.id)}
               >
                 {gameState.radiationZones.find(zone => zone.index === i) && (
                   <RadiationZone 
@@ -67,7 +76,10 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <DraggableCard {...card} />
+                    <DraggableCard 
+                      {...card} 
+                      onClick={() => handleCardClick(card.id)}
+                    />
                   </motion.div>
                 )}
               </DroppableZone>
