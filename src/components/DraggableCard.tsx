@@ -78,6 +78,7 @@ export const DraggableCard = (props: DraggableCardProps) => {
           scale: 1.05,
           transition: { duration: 0.2 }
         }}
+        onClick={props.onClick}
       >
         <div className={`
           relative transition-all duration-300
@@ -110,7 +111,7 @@ export const DraggableCard = (props: DraggableCardProps) => {
               }}
             />
           )}
-          <Card {...props} onClick={props.onClick} />
+          <Card {...props} />
         </div>
       </motion.div>
     </AnimatePresence>

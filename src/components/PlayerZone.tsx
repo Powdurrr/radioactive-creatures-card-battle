@@ -13,7 +13,7 @@ interface PlayerZoneProps {
 }
 
 export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
-  const { gameState, attachStone, playCard, selectAttacker, selectBlocker } = useGameState();
+  const { gameState, attachStone, playCard, selectAttacker, selectBlocker, selectTarget } = useGameState();
   
   const zoneClasses = `
     w-full p-4 rounded-lg
@@ -39,7 +39,13 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
   };
 
   const handleCardClick = (cardId: string) => {
-    if (gameState.currentPhase === 'Block' && isOpponent) {
+    if (gameState.currentPhase === 'Attack' && !isOpponent && gameState.selectedAttacker === cardId) {
+      // Deselect attacker if clicking the same card
+      selectAttacker("");
+    } else if (gameState.currentPhase === 'Attack' && isOpponent && gameState.selectedAttacker) {
+      // Select target if we have an attacker and clicking opponent's card
+      selectTarget(cardId);
+    } else if (gameState.currentPhase === 'Block' && isOpponent) {
       selectBlocker(cardId);
     }
   };
@@ -59,6 +65,8 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
         <DraggableCard 
           {...card} 
           onClick={() => handleCardClick(card.id)}
+          isAttacking={!isOpponent && card.id === gameState.selectedAttacker}
+          isBlocking={isOpponent && card.id === gameState.selectedBlocker}
         />
       </motion.div>
     );

@@ -1,4 +1,3 @@
-
 export interface RadiationZone {
   index: number;
   type: "boost" | "drain" | "shield";
@@ -65,6 +64,7 @@ export interface GameState {
   currentPhase: string;
   selectedAttacker: string | null;
   selectedBlocker: string | null;
+  targetedDefender: string | null;
   playerRadiation: number;
   opponentRadiation: number;
   isGameOver: boolean;
@@ -87,6 +87,7 @@ export interface GameStateContextType {
   advancePhase: () => void;
   selectAttacker: (cardId: string) => void;
   selectBlocker: (cardId: string) => void;
+  selectTarget: (targetId: string) => void;
   resetGame: () => void;
   useUltimateAbility: (cardId: string) => void;
 }
