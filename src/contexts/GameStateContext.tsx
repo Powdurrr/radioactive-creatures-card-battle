@@ -480,37 +480,50 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       const blockerDamage = blocker.attack + 
         calculateRadiationBonus(newState.opponentRadiation, hasAmplifierOnBoard(newState.opponentBoard));
 
-      // Apply damage
-      blocker.defense -= attackerDamage;
-      attacker.defense -= blockerDamage;
+      // Start combat animation
+      attacker.isAttacking = true;
+      blocker.isBlocking = true;
 
-      // Process results
-      if (blocker.defense <= 0) {
-        const blockerIndex = newState.opponentBoard.findIndex(card => card?.id === blocker.id);
-        newState.opponentBoard[blockerIndex] = null;
-        toast.success(`${blocker.name} was destroyed!`);
-      }
+      // Apply damage after a short delay to allow for animation
+      setTimeout(() => {
+        setGameState(current => {
+          const updatedState = { ...current };
+          
+          // Apply damage
+          blocker.defense -= attackerDamage;
+          attacker.defense -= blockerDamage;
 
-      if (attacker.defense <= 0) {
-        newState.playerBoard[attackerIndex] = null;
-        toast.error(`${attacker.name} was destroyed!`);
-      }
+          // Process results with destroy animation
+          if (blocker.defense <= 0) {
+            const blockerIndex = updatedState.opponentBoard.findIndex(card => card?.id === blocker.id);
+            updatedState.opponentBoard[blockerIndex] = null;
+            toast.success(`${blocker.name} was destroyed!`);
+          }
 
-      // Reset combat state
-      newState.selectedAttacker = null;
-      newState.selectedBlocker = null;
+          if (attacker.defense <= 0) {
+            updatedState.playerBoard[attackerIndex] = null;
+            toast.error(`${attacker.name} was destroyed!`);
+          }
 
-      // Check win conditions
-      const playerBoardEmpty = newState.playerBoard.every(card => card === null);
-      const opponentBoardEmpty = newState.opponentBoard.every(card => card === null);
+          // Reset combat state
+          updatedState.selectedAttacker = null;
+          updatedState.selectedBlocker = null;
 
-      if (playerBoardEmpty && !opponentBoardEmpty) {
-        newState.isGameOver = true;
-        newState.winner = "Opponent";
-      } else if (!playerBoardEmpty && opponentBoardEmpty) {
-        newState.isGameOver = true;
-        newState.winner = "Player";
-      }
+          // Check win conditions
+          const playerBoardEmpty = updatedState.playerBoard.every(card => card === null);
+          const opponentBoardEmpty = updatedState.opponentBoard.every(card => card === null);
+
+          if (playerBoardEmpty && !opponentBoardEmpty) {
+            updatedState.isGameOver = true;
+            updatedState.winner = "Opponent";
+          } else if (!playerBoardEmpty && opponentBoardEmpty) {
+            updatedState.isGameOver = true;
+            updatedState.winner = "Player";
+          }
+
+          return updatedState;
+        });
+      }, 500); // Delay to match animation duration
 
       return newState;
     });
