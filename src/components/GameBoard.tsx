@@ -22,14 +22,14 @@ export const GameBoard = () => {
             </div>
             
             {/* Center Column - Game Board */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1">
               {/* Opponent Zone - Fixed Height */}
               <div className="h-[200px] min-h-[200px]">
                 <PlayerZone isOpponent />
               </div>
               
               {/* Center Zone */}
-              <div className="flex justify-center items-center h-[40px]">
+              <div className="flex justify-center items-center h-[32px]">
                 <GameInfo />
               </div>
               
