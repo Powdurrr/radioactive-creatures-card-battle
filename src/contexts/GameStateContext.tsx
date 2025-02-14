@@ -398,12 +398,25 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         }
 
+        // Random chance to trigger field event
+        if (Math.random() < 0.2) {
+          triggerRandomFieldEvent(newState);
+        }
+
         // Update ultimate ability cooldowns
         newState.playerBoard.forEach(card => {
           if (card?.ultimateAbility?.currentCooldown) {
             card.ultimateAbility.currentCooldown--;
           }
         });
+
+        // Apply active field event effects
+        newState.activeEvents.forEach(event => event.effect(newState));
+        
+        // Update field event durations and remove expired ones
+        newState.activeEvents = newState.activeEvents
+          .map(event => ({ ...event, duration: event.duration - 1 }))
+          .filter(event => event.duration > 0);
       }
       
       return {
@@ -506,9 +519,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     selectAttacker,
     selectBlocker,
     resetGame,
-    useUltimateAbility,
-    drawCard,
-    resolveCombat
+    useUltimateAbility
   };
 
   return (
@@ -539,3 +550,5 @@ export const useGameState = () => {
   }
   return context;
 };
+
+export { GameStateContext, GameStateProvider };
