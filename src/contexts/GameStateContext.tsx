@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
 import { 
   GameState, 
@@ -288,6 +287,86 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
+  const drawCard = () => {
+    setGameState(prev => {
+      if (prev.playerDeck.length === 0) {
+        toast.error("No more cards in deck!");
+        return prev;
+      }
+
+      const newState = { ...prev };
+      const drawnCard = newState.playerDeck[0];
+      newState.playerDeck = newState.playerDeck.slice(1);
+      newState.playerHand.push(drawnCard);
+
+      toast.success(`Drew ${drawnCard.name}!`);
+      return newState;
+    });
+  };
+
+  const resolveCombat = () => {
+    setGameState(prev => {
+      if (!prev.selectedAttacker || !prev.selectedBlocker) {
+        return prev;
+      }
+
+      const newState = { ...prev };
+      const attacker = newState.playerBoard.find(card => card?.id === prev.selectedAttacker);
+      const blocker = newState.opponentBoard.find(card => card?.id === prev.selectedBlocker);
+
+      if (!attacker || !blocker) {
+        return prev;
+      }
+
+      // Calculate damage
+      const attackerDamage = attacker.attack + calculateRadiationBonus(newState.playerRadiation, hasAmplifierOnBoard(newState.playerBoard));
+      const blockerDamage = blocker.attack + calculateRadiationBonus(newState.opponentRadiation, hasAmplifierOnBoard(newState.opponentBoard));
+
+      // Apply damage
+      blocker.defense -= attackerDamage;
+      attacker.defense -= blockerDamage;
+
+      // Check for destructions
+      if (blocker.defense <= 0) {
+        const blockerIndex = newState.opponentBoard.findIndex(card => card?.id === blocker.id);
+        newState.opponentBoard[blockerIndex] = null;
+        toast.success(`${blocker.name} was destroyed!`);
+      }
+
+      if (attacker.defense <= 0) {
+        const attackerIndex = newState.playerBoard.findIndex(card => card?.id === attacker.id);
+        newState.playerBoard[attackerIndex] = null;
+        toast.error(`${attacker.name} was destroyed!`);
+      }
+
+      // Reset combat state
+      newState.selectedAttacker = null;
+      newState.selectedBlocker = null;
+
+      // Check win conditions
+      const playerBoardEmpty = newState.playerBoard.every(card => card === null);
+      const opponentBoardEmpty = newState.opponentBoard.every(card => card === null);
+
+      if (playerBoardEmpty && !opponentBoardEmpty) {
+        newState.isGameOver = true;
+        newState.winner = "Opponent";
+      } else if (!playerBoardEmpty && opponentBoardEmpty) {
+        newState.isGameOver = true;
+        newState.winner = "Player";
+      }
+
+      return newState;
+    });
+  };
+
+  useEffect(() => {
+    if (gameState.currentPhase === 'Draw') {
+      drawCard();
+    } else if (gameState.currentPhase === 'Damage' && gameState.selectedAttacker && gameState.selectedBlocker) {
+      resolveCombat();
+    }
+  }, [gameState.currentPhase]);
+
   const value = {
     gameState,
     attachStone,
@@ -297,7 +376,9 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     selectAttacker,
     selectBlocker,
     resetGame,
-    useUltimateAbility
+    useUltimateAbility,
+    drawCard,
+    resolveCombat
   };
 
   return (
