@@ -28,6 +28,8 @@ export const DraggableCard = (props: DraggableCardProps) => {
     zIndex: isDragging ? 1000 : 1,
   } : undefined;
 
+  const isBeingTargeted = gameState.targetedDefender === props.id;
+
   const getCombatAnimation = () => {
     if (props.isAttacking) {
       return {
@@ -84,10 +86,11 @@ export const DraggableCard = (props: DraggableCardProps) => {
           relative transition-all duration-300
           ${props.isAttacking ? 'ring-4 ring-red-500 shadow-lg shadow-red-500/50' : ''}
           ${props.isBlocking ? 'ring-4 ring-blue-500 shadow-lg shadow-blue-500/50' : ''}
+          ${isBeingTargeted ? 'ring-4 ring-red-500 shadow-lg shadow-red-500/50' : ''}
           ${gameState.currentPhase === 'Attack' ? 'cursor-pointer hover:ring-2 hover:ring-red-300' : ''}
           ${gameState.currentPhase === 'Block' ? 'cursor-pointer hover:ring-2 hover:ring-blue-300' : ''}
         `}>
-          {props.isAttacking && (
+          {(props.isAttacking || isBeingTargeted) && (
             <motion.div
               className="absolute -inset-1 bg-red-500/20 rounded-lg z-0"
               animate={{
@@ -111,8 +114,24 @@ export const DraggableCard = (props: DraggableCardProps) => {
               }}
             />
           )}
-          <Card {...props} />
+          <Card {...props} isTargeted={isBeingTargeted} />
         </div>
+
+        {props.isAttacking && gameState.targetedDefender && (
+          <motion.div
+            className="absolute top-1/2 left-full h-0.5 bg-red-500 origin-left z-50"
+            style={{
+              width: '100px',
+              transformOrigin: '0% 50%'
+            }}
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 border-solid border-transparent border-l-8 border-l-red-500" 
+                 style={{ borderWidth: '4px 0 4px 8px' }} />
+          </motion.div>
+        )}
       </motion.div>
     </AnimatePresence>
   );

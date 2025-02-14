@@ -21,6 +21,7 @@ interface CardProps {
   isTransformed?: boolean;
   isAttacking?: boolean;
   isBlocking?: boolean;
+  isTargeted?: boolean;
   radiationEffect?: "reduce" | "boost" | "drain" | "amplify" | "shield" | "burst";
   specialAbility?: string;
   onClick?: () => void;
@@ -35,6 +36,7 @@ export const Card = ({
   isTransformed = false,
   isAttacking = false,
   isBlocking = false,
+  isTargeted = false,
   radiationEffect,
   specialAbility,
   onClick,
@@ -90,7 +92,8 @@ export const Card = ({
               ${isTransformed ? 'border-primary/50 scale-110' : ''}
               ${isAttacking ? 'ring-2 ring-red-500 border-red-500/50' : ''}
               ${isBlocking ? 'ring-2 ring-blue-500 border-blue-500/50' : ''}
-              ${!isAttacking && !isBlocking ? 'border-gray-700/50' : ''}
+              ${isTargeted ? 'ring-2 ring-red-500 border-red-500/50 animate-pulse' : ''}
+              ${!isAttacking && !isBlocking && !isTargeted ? 'border-gray-700/50' : ''}
               ${isTransforming ? 'animate-[glow_1s_ease-in-out] scale-125' : ''}
               ${isAnimating ? 'shadow-lg' : ''}
             `}>
