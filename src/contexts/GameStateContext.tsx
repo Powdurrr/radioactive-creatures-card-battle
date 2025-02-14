@@ -204,6 +204,49 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
+  const calculateBoardStrength = (board: (Card | null)[]): number => {
+    return board.reduce((total, card) => {
+      if (!card) return total;
+      return total + card.attack + card.defense;
+    }, 0);
+  };
+
+  const checkEvolutionRequirements = (
+    card: Card, 
+    evolution: EvolutionPath,
+    radiation: number
+  ): boolean => {
+    if (!card.isTransformed) return false;
+    
+    const hasRadiation = radiation >= evolution.requirement.radiation;
+    const hasStones = card.stones >= evolution.requirement.stones;
+    const hasTurns = !evolution.requirement.transformedTurns || 
+                     (card.transformedTurns || 0) >= evolution.requirement.transformedTurns;
+    
+    return hasRadiation && hasStones && hasTurns;
+  };
+
+  const evolveCard = (state: GameState, cardIndex: number): void => {
+    const card = state.playerBoard[cardIndex];
+    if (!card || !card.evolutionPaths || card.currentEvolutionLevel === undefined) return;
+    
+    const evolution = card.evolutionPaths[card.currentEvolutionLevel];
+    if (!evolution) return;
+    
+    state.playerBoard[cardIndex] = {
+      ...card,
+      attack: card.attack + evolution.attackBonus,
+      defense: card.defense + evolution.defenseBonus,
+      name: evolution.name,
+      specialAbility: evolution.specialAbility,
+      currentEvolutionLevel: card.currentEvolutionLevel + 1
+    };
+    
+    toast.success(`${card.name} has evolved into ${evolution.name}!`, {
+      description: `Gained ${evolution.attackBonus} attack and ${evolution.defenseBonus} defense`
+    });
+  };
+
   const transformCard = (cardId: string) => {
     setGameState(prev => {
       const newState = { ...prev };
@@ -224,7 +267,9 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         isTransformed: true,
         name: card.name.replace('Baby ', ''),
         attack: card.attack * 2,
-        defense: Math.floor(card.defense * 1.5)
+        defense: Math.floor(card.defense * 1.5),
+        transformedTurns: 0,
+        currentEvolutionLevel: 0
       };
       
       toast.success(`${card.name} has transformed!`);
@@ -319,11 +364,22 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setGameState(prev => {
       const currentIndex = phases.indexOf(prev.currentPhase);
       const nextPhase = phases[(currentIndex + 1) % phases.length];
+      const newState = { ...prev };
       
       if (nextPhase === 'Draw') {
         setTurnCount(turnCount + 1);
         updateRadiationZones();
         
+        // Check for possible evolutions
+        newState.playerBoard.forEach((card, index) => {
+          if (!card || !card.evolutionPaths || card.currentEvolutionLevel === undefined) return;
+          
+          const nextEvolution = card.evolutionPaths[card.currentEvolutionLevel];
+          if (nextEvolution && checkEvolutionRequirements(card, nextEvolution, newState.playerRadiation)) {
+            evolveCard(newState, index);
+          }
+        });
+
         // Random chance to create new radiation zone
         if (Math.random() < 0.3) {
           const availableSpots = prev.playerBoard
@@ -343,7 +399,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       
       return {
-        ...prev,
+        ...newState,
         currentPhase: nextPhase
       };
     });
