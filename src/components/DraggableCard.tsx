@@ -14,10 +14,11 @@ interface DraggableCardProps {
   isTransformed?: boolean;
   isAttacking?: boolean;
   isBlocking?: boolean;
+  onClick?: () => void;
 }
 
 export const DraggableCard = (props: DraggableCardProps) => {
-  const { gameState, selectAttacker, selectBlocker } = useGameState();
+  const { gameState } = useGameState();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: props.id,
   });
@@ -26,14 +27,6 @@ export const DraggableCard = (props: DraggableCardProps) => {
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
     zIndex: isDragging ? 1000 : 1,
   } : undefined;
-
-  const handleClick = () => {
-    if (gameState.currentPhase === 'Attack') {
-      selectAttacker(props.id);
-    } else if (gameState.currentPhase === 'Block') {
-      selectBlocker(props.id);
-    }
-  };
 
   const getCombatAnimation = () => {
     if (props.isAttacking) {
@@ -117,7 +110,7 @@ export const DraggableCard = (props: DraggableCardProps) => {
               }}
             />
           )}
-          <Card {...props} onClick={handleClick} />
+          <Card {...props} onClick={props.onClick} />
         </div>
       </motion.div>
     </AnimatePresence>

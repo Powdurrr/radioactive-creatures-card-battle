@@ -6,9 +6,10 @@ interface DroppableZoneProps {
   id: string;
   children?: React.ReactNode;
   className?: string;
+  onClick?: () => void;
 }
 
-export const DroppableZone = ({ id, children, className = "" }: DroppableZoneProps) => {
+export const DroppableZone = ({ id, children, className = "", onClick }: DroppableZoneProps) => {
   const { setNodeRef, isOver } = useDroppable({
     id,
   });
@@ -20,6 +21,7 @@ export const DroppableZone = ({ id, children, className = "" }: DroppableZonePro
         ${className}
         ${isOver ? 'ring-2 ring-primary' : ''}
       `}
+      onClick={onClick}
     >
       {children}
     </div>
