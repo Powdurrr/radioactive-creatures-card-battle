@@ -48,6 +48,8 @@ export default {
         "slide-in": "slide-in 0.3s ease-in-out forwards",
         "transform": "transform 1s ease-in-out",
         "glow": "glow 1s ease-in-out",
+        "attack": "attack 0.5s ease-in-out",
+        "block": "block 0.5s ease-in-out",
       },
       keyframes: {
         "card-hover": {
@@ -85,6 +87,28 @@ export default {
           },
           "100%": {
             boxShadow: "0 0 0 0 rgba(45, 212, 191, 0.4)"
+          }
+        },
+        "attack": {
+          "0%": {
+            transform: "translateX(0) rotate(0deg)",
+          },
+          "50%": {
+            transform: "translateX(5px) rotate(-5deg)",
+          },
+          "100%": {
+            transform: "translateX(0) rotate(0deg)",
+          }
+        },
+        "block": {
+          "0%": {
+            transform: "scale(1)",
+          },
+          "50%": {
+            transform: "scale(1.1)",
+          },
+          "100%": {
+            transform: "scale(1)",
           }
         }
       },
