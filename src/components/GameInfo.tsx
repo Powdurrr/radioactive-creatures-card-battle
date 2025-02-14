@@ -1,28 +1,23 @@
 
 import React from "react";
 import { useGameState } from "../contexts/GameStateContext";
+import { Button } from "./ui/button";
+import { ChevronRight } from "lucide-react";
 
 export const GameInfo = () => {
   const { gameState, advancePhase } = useGameState();
 
   return (
-    <div className="
-      px-6 py-4 rounded-lg
-      bg-card backdrop-blur-sm shadow-lg
-      border border-gray-200/50
-      animate-fade-in
-    ">
-      <div className="flex flex-col items-center gap-2">
-        <h2 className="text-lg font-medium">{gameState.currentPhase} Phase</h2>
-        <div className="flex gap-4">
-          <button 
-            onClick={advancePhase}
-            className="px-4 py-2 rounded-md bg-primary text-white hover:bg-primary-hover transition-colors"
-          >
-            End Phase
-          </button>
-        </div>
-      </div>
+    <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900/30 backdrop-blur-sm border border-gray-700/50">
+      <span className="text-sm text-white/80 font-medium">{gameState.currentPhase}</span>
+      <Button 
+        size="sm"
+        variant="ghost" 
+        onClick={advancePhase}
+        className="h-8 px-3 text-sm hover:bg-gray-700/50"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </Button>
     </div>
   );
 };
