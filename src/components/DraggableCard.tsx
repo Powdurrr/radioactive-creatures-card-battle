@@ -35,6 +35,33 @@ export const DraggableCard = (props: DraggableCardProps) => {
     }
   };
 
+  const getCombatAnimation = () => {
+    if (props.isAttacking) {
+      return {
+        scale: [1, 1.1, 1],
+        x: [0, 30, 0],
+        rotateZ: [0, -5, 0],
+        transition: { 
+          duration: 0.5,
+          repeat: Infinity,
+          repeatDelay: 1
+        }
+      };
+    }
+    if (props.isBlocking) {
+      return {
+        scale: [1, 1.1, 1],
+        y: [0, -10, 0],
+        transition: { 
+          duration: 0.5,
+          repeat: Infinity,
+          repeatDelay: 1
+        }
+      };
+    }
+    return {};
+  };
+
   return (
     <AnimatePresence>
       <motion.div 
@@ -43,24 +70,53 @@ export const DraggableCard = (props: DraggableCardProps) => {
         {...listeners} 
         {...attributes}
         initial={{ opacity: 1, scale: 1 }}
-        animate={{
-          scale: props.isAttacking || props.isBlocking ? 1.1 : 1,
-          x: props.isAttacking ? [0, 20, 0] : 0,
-          transition: { duration: 0.3 }
-        }}
+        animate={getCombatAnimation()}
         exit={{ 
           scale: 0,
           opacity: 0,
           rotate: 360,
           y: 100,
-          transition: { duration: 0.5 }
+          transition: { 
+            duration: 0.8,
+            ease: "backIn"
+          }
+        }}
+        whileHover={{
+          scale: 1.05,
+          transition: { duration: 0.2 }
         }}
       >
         <div className={`
-          transition-all duration-300
-          ${props.isAttacking ? 'ring-2 ring-red-500' : ''}
-          ${props.isBlocking ? 'ring-2 ring-blue-500' : ''}
+          relative transition-all duration-300
+          ${props.isAttacking ? 'ring-4 ring-red-500 shadow-lg shadow-red-500/50' : ''}
+          ${props.isBlocking ? 'ring-4 ring-blue-500 shadow-lg shadow-blue-500/50' : ''}
+          ${gameState.currentPhase === 'Attack' ? 'cursor-pointer hover:ring-2 hover:ring-red-300' : ''}
+          ${gameState.currentPhase === 'Block' ? 'cursor-pointer hover:ring-2 hover:ring-blue-300' : ''}
         `}>
+          {props.isAttacking && (
+            <motion.div
+              className="absolute -inset-1 bg-red-500/20 rounded-lg z-0"
+              animate={{
+                opacity: [0.2, 0.4, 0.2],
+              }}
+              transition={{
+                duration: 1.5,
+                repeat: Infinity,
+              }}
+            />
+          )}
+          {props.isBlocking && (
+            <motion.div
+              className="absolute -inset-1 bg-blue-500/20 rounded-lg z-0"
+              animate={{
+                opacity: [0.2, 0.4, 0.2],
+              }}
+              transition={{
+                duration: 1.5,
+                repeat: Infinity,
+              }}
+            />
+          )}
           <Card {...props} onClick={handleClick} />
         </div>
       </motion.div>
