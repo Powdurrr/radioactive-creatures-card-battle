@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
 import { 
@@ -63,7 +62,6 @@ const phases = ['Draw', 'Recovery', 'Initiative', 'Attack', 'Block', 'Damage'];
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
 
-// Remove the export from here and only export at the bottom of the file
 const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [turnCount, setTurnCount] = useState(1);
@@ -314,6 +312,7 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
             : card
       )
     }));
+    toast.info("Selected attacker!");
   };
 
   const selectBlocker = (cardId: string) => {
@@ -328,6 +327,7 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
             : card
       )
     }));
+    toast.info("Selected blocker!");
   };
 
   const resetGame = () => {
@@ -468,37 +468,73 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       const blockerDamage = blocker.attack + 
         calculateRadiationBonus(newState.opponentRadiation, hasAmplifierOnBoard(newState.opponentBoard));
 
-      // Apply damage
-      blocker.defense -= attackerDamage;
-      attacker.defense -= blockerDamage;
+      // Apply damage after a delay to allow for animation
+      setTimeout(() => {
+        setGameState(current => {
+          const updatedState = { ...current };
+          
+          // Apply damage
+          const blockerIndex = updatedState.opponentBoard.findIndex(card => card?.id === blocker.id);
+          
+          if (blocker.defense <= attackerDamage) {
+            // Trigger destroy animation by setting to null after a delay
+            setTimeout(() => {
+              setGameState(s => ({
+                ...s,
+                opponentBoard: s.opponentBoard.map((c, i) => 
+                  i === blockerIndex ? null : c
+                )
+              }));
+            }, 500);
+            
+            toast.success(`${blocker.name} was destroyed!`, {
+              description: `Dealt ${attackerDamage} damage to ${blocker.defense} defense`
+            });
+          }
 
-      // Process results
-      if (blocker.defense <= 0) {
-        const blockerIndex = newState.opponentBoard.findIndex(card => card?.id === blocker.id);
-        newState.opponentBoard[blockerIndex] = null;
-        toast.success(`${blocker.name} was destroyed!`);
-      }
+          if (attacker.defense <= blockerDamage) {
+            // Trigger destroy animation
+            setTimeout(() => {
+              setGameState(s => ({
+                ...s,
+                playerBoard: s.playerBoard.map((c, i) => 
+                  i === attackerIndex ? null : c
+                )
+              }));
+            }, 500);
+            
+            toast.error(`${attacker.name} was destroyed!`, {
+              description: `Took ${blockerDamage} damage with ${attacker.defense} defense`
+            });
+          }
 
-      if (attacker.defense <= 0) {
-        newState.playerBoard[attackerIndex] = null;
-        toast.error(`${attacker.name} was destroyed!`);
-      }
+          // Reset combat state
+          updatedState.selectedAttacker = null;
+          updatedState.selectedBlocker = null;
 
-      // Reset combat state
-      newState.selectedAttacker = null;
-      newState.selectedBlocker = null;
+          // Reset attack/block visual states
+          updatedState.playerBoard = updatedState.playerBoard.map(card =>
+            card?.isAttacking ? { ...card, isAttacking: false } : card
+          );
+          updatedState.opponentBoard = updatedState.opponentBoard.map(card =>
+            card?.isBlocking ? { ...card, isBlocking: false } : card
+          );
 
-      // Check win conditions
-      const playerBoardEmpty = newState.playerBoard.every(card => card === null);
-      const opponentBoardEmpty = newState.opponentBoard.every(card => card === null);
+          // Check win conditions
+          const playerBoardEmpty = updatedState.playerBoard.every(card => card === null);
+          const opponentBoardEmpty = updatedState.opponentBoard.every(card => card === null);
 
-      if (playerBoardEmpty && !opponentBoardEmpty) {
-        newState.isGameOver = true;
-        newState.winner = "Opponent";
-      } else if (!playerBoardEmpty && opponentBoardEmpty) {
-        newState.isGameOver = true;
-        newState.winner = "Player";
-      }
+          if (playerBoardEmpty && !opponentBoardEmpty) {
+            updatedState.isGameOver = true;
+            updatedState.winner = "Opponent";
+          } else if (!playerBoardEmpty && opponentBoardEmpty) {
+            updatedState.isGameOver = true;
+            updatedState.winner = "Player";
+          }
+
+          return updatedState;
+        });
+      }, 300);
 
       return newState;
     });
@@ -553,5 +589,4 @@ const useGameState = () => {
   return context;
 };
 
-// Export everything at the bottom of the file
 export { GameStateContext, GameStateProvider, useGameState };

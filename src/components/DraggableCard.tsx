@@ -3,6 +3,7 @@ import React from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Card } from "./Card";
 import { useGameState } from "../contexts/GameStateContext";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface DraggableCardProps {
   id: string;
@@ -35,8 +36,34 @@ export const DraggableCard = (props: DraggableCardProps) => {
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
-      <Card {...props} onClick={handleClick} />
-    </div>
+    <AnimatePresence>
+      <motion.div 
+        ref={setNodeRef} 
+        style={style} 
+        {...listeners} 
+        {...attributes}
+        initial={{ opacity: 1, scale: 1 }}
+        animate={{
+          scale: props.isAttacking || props.isBlocking ? 1.1 : 1,
+          x: props.isAttacking ? [0, 20, 0] : 0,
+          transition: { duration: 0.3 }
+        }}
+        exit={{ 
+          scale: 0,
+          opacity: 0,
+          rotate: 360,
+          y: 100,
+          transition: { duration: 0.5 }
+        }}
+      >
+        <div className={`
+          transition-all duration-300
+          ${props.isAttacking ? 'ring-2 ring-red-500' : ''}
+          ${props.isBlocking ? 'ring-2 ring-blue-500' : ''}
+        `}>
+          <Card {...props} onClick={handleClick} />
+        </div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
