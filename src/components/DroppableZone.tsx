@@ -14,6 +14,13 @@ export const DroppableZone = ({ id, children, className = "", onClick }: Droppab
     id,
   });
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onClick) {
+      onClick();
+    }
+  };
+
   return (
     <div 
       ref={setNodeRef} 
@@ -21,7 +28,7 @@ export const DroppableZone = ({ id, children, className = "", onClick }: Droppab
         ${className}
         ${isOver ? 'ring-2 ring-primary' : ''}
       `}
-      onClick={onClick}
+      onClick={handleClick}
     >
       {children}
     </div>

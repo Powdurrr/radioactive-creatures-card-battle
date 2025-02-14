@@ -1,3 +1,4 @@
+
 import React from "react";
 import { DndContext, DragEndEvent } from "@dnd-kit/core";
 import { DraggableCard } from "./DraggableCard";
@@ -36,13 +37,25 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
     }
   };
 
-  const handleCardClick = (cardId: string) => {
-    if (gameState.currentPhase === 'Attack' && !isOpponent && gameState.selectedAttacker === cardId) {
-      selectAttacker("");
-    } else if (gameState.currentPhase === 'Attack' && isOpponent && gameState.selectedAttacker) {
-      selectTarget(cardId);
+  const handleZoneClick = (index: number, card: any) => {
+    if (!card) return;
+
+    if (gameState.currentPhase === 'Attack' && !isOpponent) {
+      // Selecting an attacker
+      if (gameState.selectedAttacker === card.id) {
+        // Deselect if clicking the same card
+        selectAttacker("");
+      } else {
+        selectAttacker(card.id);
+      }
+    } else if (gameState.currentPhase === 'Attack' && isOpponent) {
+      // Selecting a target for the attack
+      if (gameState.selectedAttacker) {
+        selectTarget(card.id);
+      }
     } else if (gameState.currentPhase === 'Block' && isOpponent) {
-      selectBlocker(cardId);
+      // Selecting a blocker
+      selectBlocker(card.id);
     }
   };
 
@@ -52,6 +65,10 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
   const renderCard = (card: any, index: number) => {
     if (!card) return null;
 
+    const isSelected = !isOpponent && card.id === gameState.selectedAttacker;
+    const isTargeted = isOpponent && gameState.targetedDefender === card.id;
+    const isBlocking = isOpponent && card.id === gameState.selectedBlocker;
+
     const cardElement = (
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
@@ -60,9 +77,8 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
       >
         <DraggableCard 
           {...card} 
-          onClick={() => handleCardClick(card.id)}
-          isAttacking={!isOpponent && card.id === gameState.selectedAttacker}
-          isBlocking={isOpponent && card.id === gameState.selectedBlocker}
+          isAttacking={isSelected}
+          isBlocking={isBlocking}
         />
       </motion.div>
     );
@@ -100,11 +116,13 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
                 <DroppableZone
                   key={`zone-${i}`}
                   id={`zone-${i}`}
+                  onClick={() => card && handleZoneClick(i, card)}
                   className={`
                     border-2 rounded-lg h-[140px] min-h-[140px] relative
                     ${!card ? 'border-dashed border-gray-600/30 bg-gray-800/30' : 'border-transparent'}
                     ${gameState.currentPhase === 'Attack' && !isOpponent ? 'hover:border-red-500/50 cursor-pointer' : ''}
                     ${gameState.currentPhase === 'Block' && isOpponent ? 'hover:border-blue-500/50 cursor-pointer' : ''}
+                    ${card && gameState.currentPhase === 'Attack' && isOpponent ? 'hover:border-red-500/50 cursor-pointer' : ''}
                   `}
                 >
                   {gameState.radiationZones.find(zone => zone.index === i) && (
