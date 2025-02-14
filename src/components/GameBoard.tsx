@@ -11,8 +11,8 @@ export const GameBoard = () => {
   return (
     <GameStateProvider>
       <div className="min-h-screen bg-gradient-to-br from-gray-700 to-gray-800 p-4">
-        <div className="max-w-[1600px] mx-auto">
-          <div className="grid grid-cols-[280px_1fr_250px] gap-6">
+        <div className="max-w-[1800px] mx-auto">
+          <div className="grid grid-cols-[280px_1fr_200px] gap-6">
             {/* Left Column - Player Info & Controls */}
             <div className="flex flex-col gap-4">
               <PlayerInfo username="Opponent" isOpponent />
@@ -25,7 +25,7 @@ export const GameBoard = () => {
             {/* Center Column - Game Board */}
             <div className="flex flex-col gap-6">
               {/* Opponent Zone - Fixed Height */}
-              <div className="h-[320px]">
+              <div className="h-[400px]">
                 <PlayerZone isOpponent />
               </div>
               
@@ -35,7 +35,7 @@ export const GameBoard = () => {
               </div>
               
               {/* Player Zone - Fixed Height */}
-              <div className="h-[480px]">
+              <div className="h-[600px]">
                 <PlayerZone />
               </div>
             </div>

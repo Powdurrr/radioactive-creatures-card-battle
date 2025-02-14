@@ -1,3 +1,4 @@
+
 import React from "react";
 import { DndContext, DragEndEvent } from "@dnd-kit/core";
 import { DraggableCard } from "./DraggableCard";
@@ -96,13 +97,13 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
                 {board.filter(card => card !== null).length}/5 creatures
               </span>
             </div>
-            <div className="grid grid-cols-5 gap-4 h-[220px] bg-gray-800/50 p-4 rounded-lg border-2 border-gray-700/50">
+            <div className="grid grid-cols-5 gap-4 h-[280px] bg-gray-800/50 p-4 rounded-lg border-2 border-gray-700/50">
               {board.map((card, i) => (
                 <DroppableZone
                   key={`zone-${i}`}
                   id={`zone-${i}`}
                   className={`
-                    border-2 rounded-lg h-[200px] relative
+                    border-2 rounded-lg h-[260px] relative
                     ${!card ? 'border-dashed border-gray-600/30 bg-gray-800/30' : 'border-transparent'}
                     ${gameState.currentPhase === 'Attack' && !isOpponent ? 'hover:border-red-500/50 cursor-pointer' : ''}
                     ${gameState.currentPhase === 'Block' && isOpponent ? 'hover:border-blue-500/50 cursor-pointer' : ''}
@@ -135,7 +136,7 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
                 <span className="text-xs text-white/60">{hand.length} cards</span>
               </div>
               <motion.div 
-                className="flex gap-4 overflow-x-auto bg-gray-800/50 p-4 rounded-lg border-2 border-gray-700/50 h-[200px]"
+                className="flex gap-4 overflow-x-auto bg-gray-800/50 p-4 rounded-lg border-2 border-gray-700/50 h-[260px]"
                 layout
               >
                 {hand.length === 0 ? (
