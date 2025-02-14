@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
 import { 
@@ -62,7 +63,8 @@ const phases = ['Draw', 'Recovery', 'Initiative', 'Attack', 'Block', 'Damage'];
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
 
-export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// Remove the export from here and only export at the bottom of the file
+const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [turnCount, setTurnCount] = useState(1);
 
@@ -543,7 +545,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   );
 };
 
-export const useGameState = () => {
+const useGameState = () => {
   const context = useContext(GameStateContext);
   if (context === undefined) {
     throw new Error('useGameState must be used within a GameStateProvider');
@@ -551,4 +553,5 @@ export const useGameState = () => {
   return context;
 };
 
-export { GameStateContext, GameStateProvider };
+// Export everything at the bottom of the file
+export { GameStateContext, GameStateProvider, useGameState };
