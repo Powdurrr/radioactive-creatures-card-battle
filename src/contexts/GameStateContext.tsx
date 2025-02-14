@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
 import { 
@@ -13,12 +12,14 @@ import {
   getInitialDeck, 
   checkEvolutionRequirements, 
   evolveCard, 
-  calculateBoardStrength 
+  calculateBoardStrength,
+  checkComboEffects
 } from '../utils/gameUtils';
 import {
   getCardNameByEffect,
   getCardAttackByEffect,
-  getCardDefenseByEffect
+  getCardDefenseByEffect,
+  getComboEffectsByEffect
 } from '../utils/cardUtils';
 
 const initialGameState: GameState = {
@@ -63,7 +64,6 @@ const phases = ['Draw', 'Recovery', 'Initiative', 'Attack', 'Block', 'Damage'];
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
 
-// Remove the export from here and only export at the bottom of the file
 const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [turnCount, setTurnCount] = useState(1);
@@ -297,6 +297,18 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         newState.playerRadiation = Math.max(0, newState.playerRadiation - 1);
         toast.success(`${card.name} reduced radiation by 1`);
       }
+
+      const comboEffects = checkComboEffects(newState.playerBoard);
+      comboEffects.forEach(combo => {
+        const sourceCard = newState.playerBoard.find(c => c?.id === combo.sourceCardId);
+        if (sourceCard) {
+          sourceCard.attack += combo.attackBonus;
+          sourceCard.defense += combo.defenseBonus;
+          toast.success(`Combo Effect: ${combo.type}!`, {
+            description: `${sourceCard.name} gained +${combo.attackBonus} attack and +${combo.defenseBonus} defense`
+          });
+        }
+      });
       
       return newState;
     });
@@ -553,5 +565,4 @@ const useGameState = () => {
   return context;
 };
 
-// Export everything at the bottom of the file
 export { GameStateContext, GameStateProvider, useGameState };

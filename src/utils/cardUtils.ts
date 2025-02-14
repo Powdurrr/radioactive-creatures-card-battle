@@ -1,4 +1,3 @@
-
 import { Card, EvolutionPath, UltimateAbility } from '../types/GameTypes';
 
 export const getCardNameByEffect = (effect: Card['radiationEffect']): string => {
@@ -117,5 +116,30 @@ export const getUltimateAbilityByEffect = (effect: Card['radiationEffect']): Ult
       };
     default:
       return undefined;
+  }
+};
+
+export const getComboEffectsByEffect = (effect: Card['radiationEffect']) => {
+  switch (effect) {
+    case "boost":
+      return [{
+        type: "chain",
+        bonus: 2,
+        requirement: ["amplify", "shield"]
+      }];
+    case "burst":
+      return [{
+        type: "resonance",
+        bonus: 1,
+        requirement: ["burst"]
+      }];
+    case "amplify":
+      return [{
+        type: "synergy",
+        bonus: 2,
+        requirement: ["boost", "shield"]
+      }];
+    default:
+      return [];
   }
 };
