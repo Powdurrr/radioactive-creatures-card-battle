@@ -340,6 +340,33 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     toast.success("Blocker selected - combat will resolve!");
   };
 
+  const calculateCombatDamage = (attacker: Card, defender: Card, state: GameState) => {
+    let attackerDamage = attacker.attack;
+    let defenderDefense = defender.defense;
+
+    // Apply transformation bonuses
+    if (attacker.isTransformed) {
+      attackerDamage *= 2;
+    }
+    if (defender.isTransformed) {
+      defenderDefense = Math.floor(defenderDefense * 1.5);
+    }
+
+    // Apply radiation effects
+    if (attacker.radiationEffect === "boost") {
+      attackerDamage += Math.floor(state.playerRadiation / 2);
+      toast.info(`Radiation Boost: +${Math.floor(state.playerRadiation / 2)} attack`);
+    }
+    if (defender.radiationEffect === "shield") {
+      defenderDefense += Math.floor(state.opponentRadiation / 3);
+      toast.info(`Radiation Shield: +${Math.floor(state.opponentRadiation / 3)} defense`);
+    }
+
+    // Calculate final damage
+    const finalDamage = Math.max(0, attackerDamage - defenderDefense);
+    return finalDamage;
+  };
+
   const resolveCombat = () => {
     if (gameState.currentPhase !== 'Damage') {
       return;
@@ -362,9 +389,23 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         return prev;
       }
 
-      // Calculate damage
-      const attackerDamage = attacker.attack;
-      const blockerDamage = blocker.attack;
+      // Calculate damage with radiation effects
+      const attackerDamage = calculateCombatDamage(attacker, blocker, newState);
+      const blockerDamage = calculateCombatDamage(blocker, attacker, newState);
+
+      // Apply combat effects
+      if (attacker.radiationEffect === "burst" && newState.playerRadiation >= 5) {
+        toast.warning("Radiation Burst triggered!");
+        blocker.defense -= 2;
+        newState.playerRadiation -= 2;
+      }
+
+      if (blocker.radiationEffect === "drain") {
+        const drainAmount = Math.min(2, newState.playerRadiation);
+        newState.playerRadiation -= drainAmount;
+        newState.opponentRadiation += drainAmount;
+        toast.info(`Radiation Drain: ${drainAmount} radiation transferred`);
+      }
 
       // Apply damage
       blocker.defense -= attackerDamage;
@@ -378,11 +419,23 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       if (blocker.defense <= 0) {
         newState.opponentBoard[blockerIndex] = null;
         toast.success(`${blocker.name} was destroyed!`);
+        
+        // Radiation release on destruction
+        if (blocker.radiationEffect === "amplify") {
+          newState.opponentRadiation += 2;
+          toast.warning("Amplifier destroyed: Radiation released!");
+        }
       }
 
       if (attacker.defense <= 0) {
         newState.playerBoard[attackerIndex] = null;
         toast.error(`${attacker.name} was destroyed!`);
+        
+        // Radiation release on destruction
+        if (attacker.radiationEffect === "amplify") {
+          newState.playerRadiation += 2;
+          toast.warning("Amplifier destroyed: Radiation released!");
+        }
       }
 
       // Reset combat state
