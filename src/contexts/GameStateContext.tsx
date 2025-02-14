@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
 import { 
@@ -12,14 +13,12 @@ import {
   getInitialDeck, 
   checkEvolutionRequirements, 
   evolveCard, 
-  calculateBoardStrength,
-  checkComboEffects
+  calculateBoardStrength 
 } from '../utils/gameUtils';
 import {
   getCardNameByEffect,
   getCardAttackByEffect,
-  getCardDefenseByEffect,
-  getComboEffectsByEffect
+  getCardDefenseByEffect
 } from '../utils/cardUtils';
 
 const initialGameState: GameState = {
@@ -64,6 +63,7 @@ const phases = ['Draw', 'Recovery', 'Initiative', 'Attack', 'Block', 'Damage'];
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
 
+// Remove the export from here and only export at the bottom of the file
 const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [turnCount, setTurnCount] = useState(1);
@@ -297,18 +297,6 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         newState.playerRadiation = Math.max(0, newState.playerRadiation - 1);
         toast.success(`${card.name} reduced radiation by 1`);
       }
-
-      const comboEffects = checkComboEffects(newState.playerBoard);
-      comboEffects.forEach(combo => {
-        const sourceCard = newState.playerBoard.find(c => c?.id === combo.sourceCardId);
-        if (sourceCard) {
-          sourceCard.attack += combo.attackBonus;
-          sourceCard.defense += combo.defenseBonus;
-          toast.success(`Combo Effect: ${combo.type}!`, {
-            description: `${sourceCard.name} gained +${combo.attackBonus} attack and +${combo.defenseBonus} defense`
-          });
-        }
-      });
       
       return newState;
     });
@@ -480,50 +468,37 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       const blockerDamage = blocker.attack + 
         calculateRadiationBonus(newState.opponentRadiation, hasAmplifierOnBoard(newState.opponentBoard));
 
-      // Start combat animation
-      attacker.isAttacking = true;
-      blocker.isBlocking = true;
+      // Apply damage
+      blocker.defense -= attackerDamage;
+      attacker.defense -= blockerDamage;
 
-      // Apply damage after a short delay to allow for animation
-      setTimeout(() => {
-        setGameState(current => {
-          const updatedState = { ...current };
-          
-          // Apply damage
-          blocker.defense -= attackerDamage;
-          attacker.defense -= blockerDamage;
+      // Process results
+      if (blocker.defense <= 0) {
+        const blockerIndex = newState.opponentBoard.findIndex(card => card?.id === blocker.id);
+        newState.opponentBoard[blockerIndex] = null;
+        toast.success(`${blocker.name} was destroyed!`);
+      }
 
-          // Process results with destroy animation
-          if (blocker.defense <= 0) {
-            const blockerIndex = updatedState.opponentBoard.findIndex(card => card?.id === blocker.id);
-            updatedState.opponentBoard[blockerIndex] = null;
-            toast.success(`${blocker.name} was destroyed!`);
-          }
+      if (attacker.defense <= 0) {
+        newState.playerBoard[attackerIndex] = null;
+        toast.error(`${attacker.name} was destroyed!`);
+      }
 
-          if (attacker.defense <= 0) {
-            updatedState.playerBoard[attackerIndex] = null;
-            toast.error(`${attacker.name} was destroyed!`);
-          }
+      // Reset combat state
+      newState.selectedAttacker = null;
+      newState.selectedBlocker = null;
 
-          // Reset combat state
-          updatedState.selectedAttacker = null;
-          updatedState.selectedBlocker = null;
+      // Check win conditions
+      const playerBoardEmpty = newState.playerBoard.every(card => card === null);
+      const opponentBoardEmpty = newState.opponentBoard.every(card => card === null);
 
-          // Check win conditions
-          const playerBoardEmpty = updatedState.playerBoard.every(card => card === null);
-          const opponentBoardEmpty = updatedState.opponentBoard.every(card => card === null);
-
-          if (playerBoardEmpty && !opponentBoardEmpty) {
-            updatedState.isGameOver = true;
-            updatedState.winner = "Opponent";
-          } else if (!playerBoardEmpty && opponentBoardEmpty) {
-            updatedState.isGameOver = true;
-            updatedState.winner = "Player";
-          }
-
-          return updatedState;
-        });
-      }, 500); // Delay to match animation duration
+      if (playerBoardEmpty && !opponentBoardEmpty) {
+        newState.isGameOver = true;
+        newState.winner = "Opponent";
+      } else if (!playerBoardEmpty && opponentBoardEmpty) {
+        newState.isGameOver = true;
+        newState.winner = "Player";
+      }
 
       return newState;
     });
@@ -578,4 +553,5 @@ const useGameState = () => {
   return context;
 };
 
+// Export everything at the bottom of the file
 export { GameStateContext, GameStateProvider, useGameState };
