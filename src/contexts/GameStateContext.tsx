@@ -1,7 +1,23 @@
 import React, { createContext, useContext, useState } from 'react';
 import { toast } from "sonner";
-import { GameState, GameStateContextType, Card } from '../types/GameTypes';
-import { getInitialDeck, checkEvolutionRequirements, evolveCard, calculateBoardStrength } from '../utils/gameUtils';
+import { 
+  GameState, 
+  GameStateContextType, 
+  Card, 
+  RadiationZone,
+  FieldEvent 
+} from '../types/GameTypes';
+import { 
+  getInitialDeck, 
+  checkEvolutionRequirements, 
+  evolveCard, 
+  calculateBoardStrength 
+} from '../utils/gameUtils';
+import {
+  getCardNameByEffect,
+  getCardAttackByEffect,
+  getCardDefenseByEffect
+} from '../utils/cardUtils';
 
 const initialGameState: GameState = {
   playerBoard: Array(5).fill(null),
