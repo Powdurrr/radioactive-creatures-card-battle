@@ -1,5 +1,6 @@
 
 import React from "react";
+import { ScrollArea } from "./ui/scroll-area";
 
 export const GameLog = () => {
   const logEntries = [
@@ -9,16 +10,18 @@ export const GameLog = () => {
   ];
 
   return (
-    <div className="bg-gray-900/50 rounded-lg backdrop-blur-sm border border-gray-700 p-4">
+    <div className="bg-gray-900/50 rounded-lg backdrop-blur-sm border border-gray-700 p-4 h-full">
       <h3 className="text-white/90 font-medium mb-3">Game Log</h3>
-      <div className="space-y-2 h-[calc(90vh-8rem)] overflow-y-auto">
-        {logEntries.map((entry, i) => (
-          <div key={i} className="text-sm">
-            <span className="text-white/50">{entry.time}</span>
-            <span className="text-white/80 ml-2">{entry.text}</span>
-          </div>
-        ))}
-      </div>
+      <ScrollArea className="h-[calc(100%-2rem)]">
+        <div className="space-y-2 pr-4">
+          {logEntries.map((entry, i) => (
+            <div key={i} className="text-xs">
+              <span className="text-white/50">{entry.time}</span>
+              <span className="text-white/80 ml-2">{entry.text}</span>
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
     </div>
   );
 };
