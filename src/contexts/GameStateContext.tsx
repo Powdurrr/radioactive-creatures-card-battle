@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
 import { 
@@ -5,7 +6,8 @@ import {
   GameStateContextType, 
   Card, 
   RadiationZone,
-  FieldEvent 
+  FieldEvent,
+  EvolutionPath 
 } from '../types/GameTypes';
 import { 
   getInitialDeck, 
