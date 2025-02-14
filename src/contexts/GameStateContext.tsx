@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState } from 'react';
 import { toast } from "sonner";
 import { 
@@ -78,631 +79,21 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return board.some(card => card?.radiationEffect === "amplify");
   };
 
-  const resolveCombat = (attacker: Card, blocker: Card) => {
-    const attackerBonus = calculateRadiationBonus(gameState.playerRadiation, hasAmplifierOnBoard(gameState.playerBoard));
-    const blockerBonus = calculateRadiationBonus(gameState.opponentRadiation, hasAmplifierOnBoard(gameState.opponentBoard));
-    
-    let attackerPower = attacker.isTransformed ? attacker.attack * 2 : attacker.attack;
-    let blockerDefense = blocker.isTransformed ? Math.floor(blocker.defense * 1.5) : blocker.defense;
-    
-    if (attacker.radiationEffect === "boost") {
-      attackerPower += attackerBonus;
-      if (attacker.energyStored) {
-        attackerPower += attacker.energyStored;
-        toast.success(`Energy Release: +${attacker.energyStored} attack!`);
-      }
-    }
-
-    const attackerIndex = gameState.playerBoard.findIndex(card => card?.id === attacker.id);
-    const centerBonus = attackerIndex === 2 ? 1 : 0;
-    if (centerBonus) {
-      attackerPower += centerBonus;
-      toast.success("Center Position Bonus: +1 attack!");
-    }
-
-    attacker.comboEffects?.forEach(combo => {
-      const hasRequiredCards = combo.requirement.every(effect =>
-        gameState.playerBoard.some(card => card?.radiationEffect === effect)
-      );
-      
-      if (hasRequiredCards) {
-        switch (combo.type) {
-          case "chain":
-            attackerPower += combo.bonus;
-            toast.success(`Chain Combo: +${combo.bonus} attack!`);
-            break;
-          case "synergy":
-            if (attacker.isTransformed) {
-              attackerPower += combo.bonus * 2;
-              toast.success(`Synergy Bonus: +${combo.bonus * 2} attack!`);
-            }
-            break;
-          case "resonance":
-            if (gameState.playerRadiation >= 5) {
-              attackerPower += combo.bonus;
-              toast.success(`Radiation Resonance: +${combo.bonus} attack!`);
-            }
-            break;
-        }
-      }
-    });
-
-    if (attacker.radiationEffect === "burst" && gameState.playerRadiation >= 5) {
-      attackerPower += Math.floor(gameState.playerRadiation / 2);
-      toast.success("Radiation Burst boost activated!");
-    }
-
-    if (attacker.radiationEffect === "drain" && blocker.radiationEffect === "shield") {
-      attackerPower += 2;
-      toast.warning("Shield break bonus activated!");
-    }
-
-    const adjacentAttackers = gameState.playerBoard.filter((card, index) => {
-      const attackerIndex = gameState.playerBoard.findIndex(c => c?.id === attacker.id);
-      return card?.isAttacking && Math.abs(index - attackerIndex) === 1;
-    });
-    
-    if (adjacentAttackers.length > 0) {
-      const comboBonus = adjacentAttackers.length;
-      attackerPower += comboBonus;
-      toast.success(`Combo Attack! +${comboBonus} power`);
-    }
-
-    const isDestroyed = attackerPower >= blockerDefense;
-    console.log(`Combat Result: ${attacker.name} (${attackerPower}) vs ${blocker.name} (${blockerDefense})`);
-    console.log(`Creature ${isDestroyed ? 'destroyed' : 'survived'}`);
-    
-    if (isDestroyed) {
-      if (blocker.radiationEffect === "burst") {
-        gameState.opponentRadiation = Math.min(10, gameState.opponentRadiation + 2);
-        toast.warning("Destroyed creature releases stored radiation!");
-      }
-    } else {
-      if (blocker.attack > attacker.defense && blocker.radiationEffect === "drain") {
-        setGameState(prev => ({
-          ...prev,
-          playerRadiation: Math.min(10, prev.playerRadiation + 1)
-        }));
-        toast.error("Counter-attack increases your radiation!");
-      }
-    }
-    
-    return isDestroyed;
-  };
-
-  const checkRadiationTriggers = (newState: GameState, previousState: GameState) => {
-    const hasShield = newState.playerBoard.some(card => card?.radiationEffect === "shield");
-    const radiation = newState.playerRadiation;
-    
-    if (radiation === 3) {
-      toast.info("Radiation Level 3: Basic powers awakened!", {
-        description: "Creatures with radiation boost gain +1 attack"
-      });
-    } else if (radiation === 5) {
-      toast.warning("Radiation Level 5: Advanced powers unlocked!", {
-        description: "Transformation available for eligible creatures"
-      });
-    } else if (radiation === 8) {
-      toast.error("Radiation Level 8: Maximum power reached!", {
-        description: "All radiation effects are enhanced"
-      });
-    }
-
-    if (radiation >= 5) {
-      newState.playerBoard.forEach((card, index) => {
-        if (card?.radiationEffect === "burst" && !card.isTransformed) {
-          toast.success(`${card.name} unleashes stored radiation!`);
-          newState.opponentRadiation = Math.min(10, newState.opponentRadiation + 2);
-          newState.playerBoard[index] = null;
-        }
-      });
-    }
-
-    if (hasShield && newState.playerRadiation > previousState.playerRadiation) {
-      newState.playerRadiation--;
-      toast.success("Radiation Shield absorbed 1 radiation!");
-    }
-  };
-
-  const checkTransformationRequirements = (
-    card: Card, 
-    index: number, 
-    radiation: number,
-    board: (Card | null)[]
-  ): { canTransform: boolean; reason?: string } => {
-    const requirement = card.transformRequirement;
-    if (!requirement) return { canTransform: false, reason: "No transformation available" };
-
-    if (card.stones < requirement.stones) {
-      return { 
-        canTransform: false, 
-        reason: `Needs ${requirement.stones} stones (has ${card.stones})`
-      };
-    }
-
-    if (radiation < requirement.radiation) {
-      return { 
-        canTransform: false, 
-        reason: `Needs ${requirement.radiation} radiation (has ${radiation})`
-      };
-    }
-
-    if (requirement.maxRadiation && radiation > requirement.maxRadiation) {
-      return { 
-        canTransform: false, 
-        reason: `Radiation too high (max ${requirement.maxRadiation})`
-      };
-    }
-
-    if (requirement.minTurn && turnCount < requirement.minTurn) {
-      return { 
-        canTransform: false, 
-        reason: `Must wait until turn ${requirement.minTurn}`
-      };
-    }
-
-    if (requirement.adjacentEffects) {
-      const adjacentCards = [
-        index > 0 ? board[index - 1] : null,
-        index < board.length - 1 ? board[index + 1] : null
-      ].filter((card): card is Card => card !== null);
-
-      const hasRequiredAdjacent = adjacentCards.some(
-        adjacent => adjacent.radiationEffect && 
-        requirement.adjacentEffects?.includes(adjacent.radiationEffect)
-      );
-
-      if (!hasRequiredAdjacent) {
-        return { 
-          canTransform: false, 
-          reason: `Needs adjacent ${requirement.adjacentEffects.join(" or ")} effect`
-        };
-      }
-    }
-
-    return { canTransform: true };
-  };
-
-  const transformCard = (cardId: string) => {
-    if (gameState.currentPhase !== 'Recovery') {
-      console.log('Transformations can only occur during Recovery phase');
-      return;
-    }
-
-    setGameState(prev => {
-      const newState = { ...prev };
-      let transformedIndex = -1;
-      
-      for (let i = 0; i < newState.playerBoard.length; i++) {
-        const card = newState.playerBoard[i];
-        if (card?.id === cardId) {
-          const transformCheck = checkTransformationRequirements(
-            card,
-            i,
-            prev.playerRadiation,
-            prev.playerBoard
-          );
-          
-          if (transformCheck.canTransform && !card.isTransformed) {
-            newState.playerBoard[i] = {
-              ...card,
-              isTransformed: true,
-              name: card.name.replace('Baby ', ''),
-              specialAbility: card.specialAbility + " (Enhanced)",
-            };
-            
-            transformedIndex = i;
-            
-            toast.success(`${card.name} has transformed!`, {
-              description: "Power levels have increased significantly"
-            });
-            
-            if (card.radiationEffect === "burst") {
-              newState.opponentRadiation = Math.min(10, newState.opponentRadiation + 3);
-              toast.warning("Transformation caused a radiation burst!");
-            }
-          } else if (transformCheck.reason) {
-            toast.error("Transformation requirements not met!", {
-              description: transformCheck.reason
-            });
-          }
-          break;
-        }
-      }
-
-      if (transformedIndex !== -1) {
-        checkChainReactions(newState, transformedIndex);
-      }
-      
-      return newState;
-    });
-  };
-
-  const checkChainReactions = (newState: GameState, transformedCardIndex: number) => {
-    const transformedCard = newState.playerBoard[transformedCardIndex];
-    if (!transformedCard) return;
-
-    if (transformedCard.radiationEffect === "boost") {
-      transformedCard.energyStored = Math.floor(newState.playerRadiation / 2);
-      toast.info(`${transformedCard.name} stores ${transformedCard.energyStored} energy!`);
-    }
-
-    const adjacentIndices = [
-      transformedCardIndex - 1,
-      transformedCardIndex + 1
-    ].filter(i => i >= 0 && i < 5);
-
-    adjacentIndices.forEach(index => {
-      const adjacentCard = newState.playerBoard[index];
-      if (!adjacentCard || adjacentCard.isTransformed) return;
-
-      if (transformedCard.radiationEffect === "amplify" && 
-          adjacentCard.radiationEffect === "burst") {
-        newState.opponentRadiation = Math.min(10, newState.opponentRadiation + 3);
-        toast.success("Chain Reaction: Amplified Burst!", {
-          description: `${adjacentCard.name} resonates with ${transformedCard.name}`
-        });
-      } else if (transformedCard.radiationEffect === "shield" && 
-                adjacentCard.radiationEffect === "boost") {
-        adjacentCard.defense += 2;
-        toast.success("Chain Reaction: Reinforced Defense!", {
-          description: `${adjacentCard.name} is strengthened by ${transformedCard.name}`
-        });
-      }
-    });
-
-    const boardCards = newState.playerBoard.filter((card): card is Card => card !== null);
-    const transformedCount = boardCards.filter(card => card.isTransformed).length;
-    
-    if (transformedCount >= 3) {
-      boardCards.forEach(card => {
-        if (card.isTransformed) {
-          card.attack += 1;
-          card.defense += 1;
-        }
-      });
-      toast.success("Board Synergy: All transformed creatures powered up!", {
-        description: "Multiple transformations create a resonance effect"
-      });
-    }
-
-    const radiationEffectTypes = new Set(boardCards.map(card => card.radiationEffect));
-    if (radiationEffectTypes.size >= 3) {
-      newState.playerRadiation = Math.max(0, newState.playerRadiation - 1);
-      toast.success("Radiation Harmony achieved!", {
-        description: "Diverse radiation effects stabilize the field"
-      });
-    }
-
-    const isInCenter = transformedCardIndex === 2;
-    if (isInCenter && transformedCard.isTransformed) {
-      const adjacentCards = [
-        newState.playerBoard[1],
-        newState.playerBoard[3]
-      ].filter((card): card is Card => card !== null);
-      
-      adjacentCards.forEach(card => {
-        if (card.radiationEffect === transformedCard.radiationEffect) {
-          card.defense += 1;
-          toast.success("Center Formation Bonus!", {
-            description: `Adjacent ${card.name} gains +1 defense`
-          });
-        }
-      });
-    }
-  };
-
-  const playCard = (cardId: string, zoneId: string) => {
-    if (gameState.currentPhase !== 'Initiative') {
-      console.log('Cards can only be played during Initiative phase');
-      return;
-    }
-
-    setGameState(prev => {
-      const newState = { ...prev };
-      const zoneIndex = parseInt(zoneId.split('-')[1]);
-      const card = newState.playerHand.find(c => c.id === cardId);
-      
-      if (card && zoneIndex >= 0 && zoneIndex < 5) {
-        if (zoneIndex === 2) {
-          if (card.radiationEffect === "amplify") {
-            toast.success("Center Amplification!", {
-              description: "Radiation effects are enhanced"
-            });
-            card.specialAbility = card.specialAbility + " (Center Enhanced)";
-          }
-        }
-
-        const adjacentCards = [
-          zoneIndex > 0 ? newState.playerBoard[zoneIndex - 1] : null,
-          zoneIndex < 4 ? newState.playerBoard[zoneIndex + 1] : null
-        ].filter((c): c is Card => c !== null);
-
-        if (adjacentCards.length > 0) {
-          const matchingEffects = adjacentCards.filter(
-            c => c.radiationEffect === card.radiationEffect
-          );
-
-          if (matchingEffects.length > 0) {
-            card.defense += matchingEffects.length;
-            toast.success("Formation Bonus!", {
-              description: `+${matchingEffects.length} defense from adjacent allies`
-            });
-          }
-        }
-
-        const hasAmplifier = hasAmplifierOnBoard(newState.playerBoard);
-        
-        switch (card.radiationEffect) {
-          case "reduce":
-            const reduction = hasAmplifier ? 2 : 1;
-            newState.playerRadiation = Math.max(0, newState.playerRadiation - reduction);
-            toast.success(`${card.name} reduced your radiation by ${reduction}!`);
-            break;
-            
-          case "drain":
-            const drainAmount = hasAmplifier ? 2 : 1;
-            newState.opponentRadiation = Math.min(10, newState.opponentRadiation + drainAmount);
-            toast.success(`${card.name} increased opponent's radiation by ${drainAmount}!`);
-            break;
-            
-          case "burst":
-            if (newState.playerRadiation >= 5) {
-              const burstAmount = hasAmplifier ? 4 : 2;
-              newState.opponentRadiation = Math.min(10, newState.opponentRadiation + burstAmount);
-              toast.success(`${card.name} released a radiation burst!`);
-            }
-            break;
-            
-          case "amplify":
-            toast.success(`${card.name} will double all radiation effects!`);
-            break;
-            
-          case "shield":
-            toast.success(`${card.name} will protect against radiation buildup!`);
-            break;
-        }
-
-        if (newState.playerRadiation >= 5 && card.radiationEffect === "boost") {
-          toast.success("Radiation Surge: Attack power increased!", {
-            description: `${card.name} gains +${calculateRadiationBonus(newState.playerRadiation, hasAmplifier)} attack!`
-          });
-        }
-
-        newState.playerBoard[zoneIndex] = card;
-        newState.playerHand = newState.playerHand.filter(c => c.id !== cardId);
-      }
-      
-      checkRadiationTriggers(newState, prev);
-      return newState;
-    });
-  };
-
-  const selectAttacker = (cardId: string) => {
-    if (gameState.currentPhase !== 'Attack') {
-      console.log('Attackers can only be selected during Attack phase');
-      return;
-    }
-
-    setGameState(prev => {
-      const newState = { ...prev };
-      
-      const selectedCard = prev.playerBoard.find(card => card?.id === cardId);
-      const adjacentCards = prev.playerBoard.filter((card, index) => {
-        const selectedIndex = prev.playerBoard.findIndex(c => c?.id === cardId);
-        return card && Math.abs(index - selectedIndex) === 1;
-      });
-
-      const canChainAttack = adjacentCards.some(card => 
-        card?.radiationEffect === selectedCard?.radiationEffect
-      );
-
-      if (canChainAttack) {
-        toast.info("Chain Attack Available!", {
-          description: "Adjacent creatures can join the attack"
-        });
-      }
-
-      return {
-        ...newState,
-        selectedAttacker: cardId,
-        playerBoard: prev.playerBoard.map(card => 
-          card?.id === cardId 
-            ? { ...card, isAttacking: true }
-            : card?.isAttacking 
-              ? { ...card, isAttacking: false }
-              : card
-        )
-      };
-    });
-  };
-
-  const selectBlocker = (cardId: string) => {
-    if (gameState.currentPhase !== 'Block') {
-      console.log('Blockers can only be selected during Block phase');
-      return;
-    }
-
-    setGameState(prev => ({
-      ...prev,
-      selectedBlocker: cardId,
-      opponentBoard: prev.opponentBoard.map(card =>
-        card?.id === cardId
-          ? { ...card, isBlocking: true }
-          : card?.isBlocking
-            ? { ...card, isBlocking: false }
-            : card
-      )
-    }));
-  };
-
-  const advancePhase = () => {
-    setGameState(prev => {
-      const currentIndex = phases.indexOf(prev.currentPhase);
-      const nextIndex = (currentIndex + 1) % phases.length;
-      const nextPhase = phases[nextIndex];
-      
-      const newState = { ...prev, currentPhase: nextPhase };
-      
-      if (nextPhase === 'Draw') {
-        setTurnCount(turnCount + 1);
-        
-        if (newState.playerHand.length < 5) {
-          drawCard();
-        }
-        
-        newState.playerRadiation = Math.min(10, prev.playerRadiation + 1);
-        
-        if (newState.opponentBoard.some(card => card === null)) {
-          const emptySpots = newState.opponentBoard
-            .map((card, index) => ({ card, index }))
-            .filter(({ card }) => card === null)
-            .map(({ index }) => index);
-          
-          if (emptySpots.length > 0) {
-            const playerBoardStrength = calculateBoardStrength(newState.playerBoard);
-            const opponentBoardStrength = calculateBoardStrength(newState.opponentBoard);
-            
-            if (opponentBoardStrength < playerBoardStrength) {
-              const randomSpot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
-              const newCard = createAICard(newState.playerRadiation, playerBoardStrength);
-              newState.opponentBoard[randomSpot] = newCard;
-              
-              toast.warning("Opponent deploys a new creature!", {
-                description: `${newCard.name} appears on the field`
-              });
-            }
-          }
-        }
-        
-        if (Math.random() < 0.2) {
-          triggerRandomFieldEvent(newState);
-        }
-        
-        newState.activeEvents = newState.activeEvents.map(event => {
-          event.effect(newState);
-          return { ...event, duration: event.duration - 1 };
-        }).filter(event => event.duration > 0);
-        
-        newState.playerBoard = newState.playerBoard.map(card => {
-          if (card?.isTransformed) {
-            card.transformedTurns = (card.transformedTurns || 0) + 1;
-          }
-          return card;
-        });
-
-        newState.playerBoard.forEach((card, index) => {
-          if (card?.isTransformed && card.evolutionPaths && card.currentEvolutionLevel !== undefined) {
-            const nextEvolution = card.evolutionPaths[card.currentEvolutionLevel];
-            if (nextEvolution && checkEvolutionRequirements(card, nextEvolution, newState.playerRadiation)) {
-              evolveCard(newState, index);
-            }
-          }
-        });
-
-        newState.playerBoard = newState.playerBoard.map(card => {
-          if (card?.ultimateAbility?.currentCooldown) {
-            return {
-              ...card,
-              ultimateAbility: {
-                ...card.ultimateAbility,
-                currentCooldown: Math.max(0, card.ultimateAbility.currentCooldown - 1)
-              }
-            };
-          }
-          return card;
-        });
-      }
-      
-      return newState;
-    });
-  };
-
-  const resetGame = () => {
-    setGameState(initialGameState);
-  };
-
-  const applyRadiationZoneEffects = (newState: GameState) => {
-    newState.radiationZones.forEach(zone => {
-      const card = newState.playerBoard[zone.index];
-      if (!card) return;
-
-      switch (zone.type) {
-        case "boost":
-          if (card.radiationEffect === "boost") {
-            card.attack += 1;
-            toast.info(`${card.name} powered up by radiation zone!`);
-          }
-          break;
-        case "drain":
-          if (!card.isTransformed) {
-            newState.playerRadiation = Math.min(10, newState.playerRadiation + 1);
-            toast.warning(`Radiation zone affecting ${card.name}!`);
-          }
-          break;
-        case "shield":
-          if (card.radiationEffect === "shield") {
-            card.defense += 1;
-            toast.success(`${card.name} reinforced by radiation zone!`);
-          }
-          break;
-      }
-    });
-
-    newState.radiationZones = newState.radiationZones
-      .map(zone => ({ ...zone, duration: zone.duration - 1 }))
-      .filter(zone => zone.duration > 0);
-  };
-
   const createRadiationZone = (index: number, type: RadiationZone["type"]) => {
     setGameState(prev => {
       const newState = { ...prev };
-      
       newState.radiationZones.push({
         index,
         type,
         duration: 3
       });
-
+      
       toast.info("Radiation Zone Created!", {
         description: `A ${type} zone has appeared at position ${index + 1}`
       });
-
+      
       return newState;
     });
-  };
-
-  const calculateBoardStrength = (board: (Card | null)[]) => {
-    return board.reduce((total, card) => {
-      if (!card) return total;
-      const power = card.isTransformed ? 
-        (card.attack * 2 + Math.floor(card.defense * 1.5)) : 
-        (card.attack + card.defense);
-      return total + power;
-    }, 0);
-  };
-
-  const createAICard = (playerRadiation: number, playerBoardStrength: number): Card => {
-    const effects: Card['radiationEffect'][] = ["boost", "drain", "shield", "burst"];
-    let selectedEffect: Card['radiationEffect'];
-    
-    if (playerRadiation >= 8) {
-      selectedEffect = Math.random() < 0.6 ? "drain" : "shield";
-    } else if (playerBoardStrength > 15) {
-      selectedEffect = Math.random() < 0.7 ? "burst" : "boost";
-    } else {
-      selectedEffect = effects[Math.floor(Math.random() * effects.length)];
-    }
-    
-    return {
-      id: `ai-${Date.now()}`,
-      name: getCardNameByEffect(selectedEffect),
-      attack: getCardAttackByEffect(selectedEffect),
-      defense: getCardDefenseByEffect(selectedEffect),
-      stones: 0,
-      isTransformed: false,
-      radiationEffect: selectedEffect
-    };
   };
 
   const triggerRandomFieldEvent = (state: GameState) => {
@@ -727,11 +118,6 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               card.attack += 1;
             }
           });
-          state.opponentBoard.forEach(card => {
-            if (card && !card.isTransformed && card.radiationEffect === "boost") {
-              card.attack += 1;
-            }
-          });
           toast.warning("Radiation Meltdown!", {
             description: "Boost creatures gain increased power"
           });
@@ -744,121 +130,25 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           const randomIndex = Math.floor(Math.random() * 5);
           if (state.playerBoard[randomIndex]) {
             state.playerBoard[randomIndex] = null;
+            toast.error("Radiation Storm!", {
+              description: "Random creature destroyed"
+            });
           }
-          if (state.opponentBoard[randomIndex]) {
-            state.opponentBoard[randomIndex] = null;
-          }
-          toast.error("Radiation Storm!", {
-            description: "Random creatures are destroyed"
-          });
-        }
-      },
-      {
-        type: "powerSurge",
-        duration: 1,
-        effect: (state) => {
-          state.playerBoard.forEach(card => {
-            if (card?.isTransformed) {
-              card.defense += 1;
-            }
-          });
-          state.opponentBoard.forEach(card => {
-            if (card?.isTransformed) {
-              card.defense += 1;
-            }
-          });
-          toast.success("Power Surge!", {
-            description: "All transformed creatures gain +1 defense"
-          });
         }
       }
     ];
 
     const event = events[Math.floor(Math.random() * events.length)];
     state.activeEvents.push(event);
-    
     toast.info(`Field Event: ${event.type}`, {
       description: "A new environmental effect has begun!"
     });
   };
 
-  const calculateBoardControl = () => {
-    setGameState(prev => {
-      const newState = { ...prev };
-      const playerOccupiedSlots = newState.playerBoard.filter(card => card !== null).length;
-      const opponentOccupiedSlots = newState.opponentBoard.filter(card => card !== null).length;
-      
-      if (playerOccupiedSlots >= 4 && playerOccupiedSlots > opponentOccupiedSlots * 2) {
-        newState.isGameOver = true;
-        newState.winner = 'player';
-        toast.success("Victory through board control!");
-      } else if (opponentOccupiedSlots >= 4 && opponentOccupiedSlots > playerOccupiedSlots * 2) {
-        newState.isGameOver = true;
-        newState.winner = 'opponent';
-        toast.error("Defeat through board control!");
-      }
-      
-      return newState;
-    });
-  };
-
-  const drawCard = () => {
-    setGameState(prev => {
-      const newState = { ...prev };
-      
-      if (newState.playerDeck.length === 0) {
-        toast.error("No cards left in deck!");
-        if (newState.playerHand.length === 0) {
-          newState.isGameOver = true;
-          newState.winner = "opponent";
-          toast.error("Game Over - Out of cards!");
-        }
-        return newState;
-      }
-      
-      const drawnCard = newState.playerDeck[0];
-      newState.playerHand.push(drawnCard);
-      newState.playerDeck = newState.playerDeck.slice(1);
-      
-      toast.success(`Drew ${drawnCard.name}!`, {
-        description: drawnCard.specialAbility || `A ${drawnCard.radiationEffect} type card`
-      });
-      
-      return newState;
-    });
-  };
-
-  const checkWinCondition = (state: GameState) => {
-    if (state.opponentRadiation >= 10) {
-      state.isGameOver = true;
-      state.winner = 'player';
-      toast.success("Victory! Opponent overloaded with radiation!");
-    } else if (state.playerRadiation >= 10) {
-      state.isGameOver = true;
-      state.winner = 'opponent';
-      toast.error("Defeat! Your radiation levels are critical!");
-    }
-    
-    const playerHasCreatures = state.playerBoard.some(card => card !== null);
-    const opponentHasCreatures = state.opponentBoard.some(card => card !== null);
-    
-    if (!playerHasCreatures && state.playerHand.length === 0) {
-      state.isGameOver = true;
-      state.winner = 'opponent';
-      toast.error("Defeat! You have no creatures left!");
-    } else if (!opponentHasCreatures) {
-      state.isGameOver = true;
-      state.winner = 'player';
-      toast.success("Victory! You've cleared the opponent's board!");
-    }
-  };
-
   const attachStone = (sourceId: string, targetId: string) => {
     setGameState(prev => {
       const newState = { ...prev };
-      const targetCard = newState.playerBoard.find(card => 
-        card?.id === targetId
-      );
+      const targetCard = newState.playerBoard.find(card => card?.id === targetId);
       
       if (targetCard) {
         targetCard.stones += 1;
@@ -871,53 +161,130 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
+  const transformCard = (cardId: string) => {
+    setGameState(prev => {
+      const newState = { ...prev };
+      const cardIndex = newState.playerBoard.findIndex(card => card?.id === cardId);
+      
+      if (cardIndex === -1) return prev;
+      
+      const card = newState.playerBoard[cardIndex];
+      if (!card || card.isTransformed) return prev;
+      
+      if (newState.playerRadiation < 5) {
+        toast.error("Not enough radiation to transform!");
+        return prev;
+      }
+      
+      newState.playerBoard[cardIndex] = {
+        ...card,
+        isTransformed: true,
+        name: card.name.replace('Baby ', ''),
+        attack: card.attack * 2,
+        defense: Math.floor(card.defense * 1.5)
+      };
+      
+      toast.success(`${card.name} has transformed!`);
+      return newState;
+    });
+  };
+
+  const playCard = (cardId: string, zoneId: string) => {
+    setGameState(prev => {
+      const newState = { ...prev };
+      const zoneIndex = parseInt(zoneId.split('-')[1]);
+      const card = newState.playerHand.find(c => c.id === cardId);
+      
+      if (!card || !Number.isInteger(zoneIndex) || zoneIndex < 0 || zoneIndex > 4) {
+        return prev;
+      }
+      
+      newState.playerBoard[zoneIndex] = card;
+      newState.playerHand = newState.playerHand.filter(c => c.id !== cardId);
+      
+      if (card.radiationEffect === "reduce") {
+        newState.playerRadiation = Math.max(0, newState.playerRadiation - 1);
+        toast.success(`${card.name} reduced radiation by 1`);
+      }
+      
+      return newState;
+    });
+  };
+
+  const selectAttacker = (cardId: string) => {
+    setGameState(prev => ({
+      ...prev,
+      selectedAttacker: cardId,
+      playerBoard: prev.playerBoard.map(card =>
+        card?.id === cardId
+          ? { ...card, isAttacking: true }
+          : card?.isAttacking
+            ? { ...card, isAttacking: false }
+            : card
+      )
+    }));
+  };
+
+  const selectBlocker = (cardId: string) => {
+    setGameState(prev => ({
+      ...prev,
+      selectedBlocker: cardId,
+      opponentBoard: prev.opponentBoard.map(card =>
+        card?.id === cardId
+          ? { ...card, isBlocking: true }
+          : card?.isBlocking
+            ? { ...card, isBlocking: false }
+            : card
+      )
+    }));
+  };
+
+  const resetGame = () => {
+    setGameState(initialGameState);
+    setTurnCount(1);
+  };
+
   const useUltimateAbility = (cardId: string) => {
     setGameState(prev => {
       const newState = { ...prev };
       const card = newState.playerBoard.find(c => c?.id === cardId);
       
-      if (!card?.ultimateAbility || !card.isTransformed) return prev;
+      if (!card?.ultimateAbility || !card.isTransformed) {
+        toast.error("Card cannot use ultimate ability!");
+        return prev;
+      }
       
       if (card.ultimateAbility.currentCooldown) {
-        toast.error("Ultimate ability is on cooldown!", {
-          description: `${card.ultimateAbility.currentCooldown} turns remaining`
-        });
+        toast.error("Ultimate ability is on cooldown!");
         return prev;
       }
       
       if (newState.playerRadiation < card.ultimateAbility.cost) {
-        toast.error("Not enough radiation!", {
-          description: `Requires ${card.ultimateAbility.cost} radiation`
-        });
+        toast.error("Not enough radiation!");
         return prev;
-      }
-      
-      switch (card.ultimateAbility.name) {
-        case "Radiation Overdrive":
-          card.attack *= 3;
-          setTimeout(() => {
-            card.attack /= 3;
-          }, 1000);
-          break;
-        case "Total Absorption":
-          newState.playerRadiation += newState.opponentRadiation;
-          newState.opponentRadiation = 0;
-          break;
-        case "Chain Reaction":
-          newState.opponentBoard = newState.opponentBoard.map(c => 
-            c?.isTransformed ? c : null
-          );
-          break;
       }
       
       card.ultimateAbility.currentCooldown = card.ultimateAbility.cooldown;
       newState.playerRadiation -= card.ultimateAbility.cost;
       
-      toast.success(`${card.name} uses ${card.ultimateAbility.name}!`, {
-        description: card.ultimateAbility.effect
-      });
-      
+      toast.success(`${card.name} uses ${card.ultimateAbility.name}!`);
       return newState;
+    });
+  };
+
+  const advancePhase = () => {
+    setGameState(prev => {
+      const currentIndex = phases.indexOf(prev.currentPhase);
+      const nextPhase = phases[(currentIndex + 1) % phases.length];
+      
+      if (nextPhase === 'Draw') {
+        setTurnCount(turnCount + 1);
+      }
+      
+      return {
+        ...prev,
+        currentPhase: nextPhase
+      };
     });
   };
 
@@ -937,7 +304,18 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     <GameStateContext.Provider value={value}>
       {children}
       {gameState.isGameOver && gameState.winner && (
-        <GameOverScreen winner={gameState.winner} />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-white p-8 rounded-lg">
+            <h2 className="text-2xl font-bold mb-4">Game Over</h2>
+            <p className="text-xl">{gameState.winner} wins!</p>
+            <button
+              onClick={resetGame}
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Play Again
+            </button>
+          </div>
+        </div>
       )}
     </GameStateContext.Provider>
   );
@@ -949,13 +327,4 @@ export const useGameState = () => {
     throw new Error('useGameState must be used within a GameStateProvider');
   }
   return context;
-};
-
-const GameOverScreen = ({ winner }: { winner: string }) => {
-  return (
-    <div>
-      <h1>Game Over</h1>
-      <p>The {winner} wins!</p>
-    </div>
-  );
 };
