@@ -485,6 +485,45 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     }
   }, [gameState.currentPhase]);
 
+  const resetGame = () => {
+    setGameState(initialGameState);
+    setTurnCount(1);
+    toast.success("Starting new game!");
+  };
+
+  const useUltimateAbility = (cardId: string) => {
+    setGameState(prev => {
+      const newState = { ...prev };
+      const card = newState.playerBoard.find(c => c?.id === cardId);
+      
+      if (!card || !card.ultimateAbility) {
+        toast.error("No ultimate ability available!");
+        return prev;
+      }
+
+      if (card.ultimateAbility.currentCooldown && card.ultimateAbility.currentCooldown > 0) {
+        toast.error(`Ultimate ability on cooldown for ${card.ultimateAbility.currentCooldown} more turns!`);
+        return prev;
+      }
+
+      if (newState.playerRadiation < card.ultimateAbility.cost) {
+        toast.error(`Not enough radiation! Need ${card.ultimateAbility.cost} radiation.`);
+        return prev;
+      }
+
+      // Apply ability cost
+      newState.playerRadiation -= card.ultimateAbility.cost;
+      
+      // Set cooldown
+      if (card.ultimateAbility) {
+        card.ultimateAbility.currentCooldown = card.ultimateAbility.cooldown;
+      }
+
+      toast.success(`${card.name} used their ultimate ability!`);
+      return newState;
+    });
+  };
+
   const value = {
     gameState,
     attachStone,
