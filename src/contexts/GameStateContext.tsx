@@ -50,6 +50,7 @@ const initialGameState: GameState = {
   currentPhase: 'Draw',
   selectedAttacker: null,
   selectedBlocker: null,
+  targetedDefender: null,
   playerRadiation: 0,
   opponentRadiation: 0,
   isGameOver: false,
@@ -340,6 +341,15 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     toast.success("Blocker selected - combat will resolve!");
   };
 
+  const selectTarget = (targetId: string) => {
+    setGameState(prev => {
+      const newState = { ...prev };
+      newState.targetedDefender = targetId;
+      toast.info("Target selected!");
+      return newState;
+    });
+  };
+
   const calculateCombatDamage = (attacker: Card, defender: Card, state: GameState) => {
     let attackerDamage = attacker.attack;
     let defenderDefense = defender.defense;
@@ -585,6 +595,7 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     advancePhase,
     selectAttacker,
     selectBlocker,
+    selectTarget,
     resetGame,
     useUltimateAbility
   };
