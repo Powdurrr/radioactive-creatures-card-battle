@@ -1,3 +1,4 @@
+<lov-code>
 import React, { createContext, useContext, useState } from 'react';
 import { toast } from "sonner";
 
@@ -954,19 +955,4 @@ const useUltimateAbility = (cardId: string) => {
       case "Chain Reaction":
         newState.opponentBoard = newState.opponentBoard.map(c => 
           c?.isTransformed ? c : null
-        );
-        break;
-    }
-    
-    card.ultimateAbility.currentCooldown = card.ultimateAbility.cooldown;
-    newState.playerRadiation -= card.ultimateAbility.cost;
-    
-    toast.success(`${card.name} uses ${card.ultimateAbility.name}!`, {
-      description: card.ultimateAbility.effect
-    });
-    
-    return newState;
-  });
-};
-
-export { GameStateProvider, useGameState };
+        
