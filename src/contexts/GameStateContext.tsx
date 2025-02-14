@@ -58,7 +58,7 @@ const initialGameState: GameState = {
   activeEvents: []
 };
 
-const phases = ['Draw', 'Recovery', 'Initiative', 'Attack', 'Block', 'Damage'];
+const phases = ['Draw', 'Recovery', 'Attack', 'Block', 'Damage', 'End'];
 
 const GameStateContext = createContext<GameStateContextType | undefined>(undefined);
 
@@ -301,6 +301,11 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   };
 
   const selectAttacker = (cardId: string) => {
+    if (gameState.currentPhase !== 'Attack') {
+      toast.error("You can only select attackers during the Attack phase!");
+      return;
+    }
+
     setGameState(prev => ({
       ...prev,
       selectedAttacker: cardId,
@@ -312,10 +317,15 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
             : card
       )
     }));
-    toast.info("Selected attacker!");
+    toast.success("Selected attacker - choose a target!");
   };
 
   const selectBlocker = (cardId: string) => {
+    if (gameState.currentPhase !== 'Block') {
+      toast.error("You can only select blockers during the Block phase!");
+      return;
+    }
+
     setGameState(prev => ({
       ...prev,
       selectedBlocker: cardId,
@@ -327,38 +337,66 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
             : card
       )
     }));
-    toast.info("Selected blocker!");
+    toast.success("Blocker selected - combat will resolve!");
   };
 
-  const resetGame = () => {
-    setGameState(initialGameState);
-    setTurnCount(1);
-  };
+  const resolveCombat = () => {
+    if (gameState.currentPhase !== 'Damage') {
+      return;
+    }
 
-  const useUltimateAbility = (cardId: string) => {
     setGameState(prev => {
+      if (!prev.selectedAttacker || !prev.selectedBlocker) {
+        toast.error("No combat to resolve!");
+        return prev;
+      }
+
       const newState = { ...prev };
-      const card = newState.playerBoard.find(c => c?.id === cardId);
+      const attackerIndex = newState.playerBoard.findIndex(card => card?.id === prev.selectedAttacker);
+      const blockerIndex = newState.opponentBoard.findIndex(card => card?.id === prev.selectedBlocker);
       
-      if (!card?.ultimateAbility || !card.isTransformed) {
-        toast.error("Card cannot use ultimate ability!");
+      const attacker = newState.playerBoard[attackerIndex];
+      const blocker = newState.opponentBoard[blockerIndex];
+
+      if (!attacker || !blocker) {
         return prev;
       }
-      
-      if (card.ultimateAbility.currentCooldown) {
-        toast.error("Ultimate ability is on cooldown!");
-        return prev;
+
+      // Calculate damage
+      const attackerDamage = attacker.attack;
+      const blockerDamage = blocker.attack;
+
+      // Apply damage
+      blocker.defense -= attackerDamage;
+      attacker.defense -= blockerDamage;
+
+      toast.info(`Combat Results:`, {
+        description: `${attacker.name} deals ${attackerDamage} damage, ${blocker.name} deals ${blockerDamage} damage`
+      });
+
+      // Check for destructions
+      if (blocker.defense <= 0) {
+        newState.opponentBoard[blockerIndex] = null;
+        toast.success(`${blocker.name} was destroyed!`);
       }
-      
-      if (newState.playerRadiation < card.ultimateAbility.cost) {
-        toast.error("Not enough radiation!");
-        return prev;
+
+      if (attacker.defense <= 0) {
+        newState.playerBoard[attackerIndex] = null;
+        toast.error(`${attacker.name} was destroyed!`);
       }
+
+      // Reset combat state
+      newState.selectedAttacker = null;
+      newState.selectedBlocker = null;
       
-      card.ultimateAbility.currentCooldown = card.ultimateAbility.cooldown;
-      newState.playerRadiation -= card.ultimateAbility.cost;
-      
-      toast.success(`${card.name} uses ${card.ultimateAbility.name}!`);
+      // Reset attack/block flags
+      newState.playerBoard = newState.playerBoard.map(card =>
+        card?.isAttacking ? { ...card, isAttacking: false } : card
+      );
+      newState.opponentBoard = newState.opponentBoard.map(card =>
+        card?.isBlocking ? { ...card, isBlocking: false } : card
+      );
+
       return newState;
     });
   };
@@ -368,59 +406,53 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       const currentIndex = phases.indexOf(prev.currentPhase);
       const nextPhase = phases[(currentIndex + 1) % phases.length];
       const newState = { ...prev };
-      
-      if (nextPhase === 'Draw') {
-        setTurnCount(turnCount + 1);
-        updateRadiationZones();
-        
-        // Check for possible evolutions
-        newState.playerBoard.forEach((card, index) => {
-          if (!card || !card.evolutionPaths || card.currentEvolutionLevel === undefined) return;
-          
-          const nextEvolution = card.evolutionPaths[card.currentEvolutionLevel];
-          if (nextEvolution && checkEvolutionRequirements(card, nextEvolution, newState.playerRadiation)) {
-            evolveCard(newState, index);
+
+      // Phase-specific logic
+      switch (nextPhase) {
+        case 'Draw':
+          setTurnCount(turnCount + 1);
+          // Draw phase logic
+          if (newState.playerDeck.length > 0) {
+            const drawnCard = newState.playerDeck[0];
+            newState.playerHand.push(drawnCard);
+            newState.playerDeck = newState.playerDeck.slice(1);
+            toast.success(`Drew ${drawnCard.name}!`);
           }
-        });
+          break;
 
-        // Random chance to create new radiation zone
-        if (Math.random() < 0.3) {
-          const availableSpots = prev.playerBoard
-            .map((card, index) => ({ card, index }))
-            .filter(({ card, index }) => 
-              card && !prev.radiationZones.some(zone => zone.index === index)
-            )
-            .map(({ index }) => index);
-
-          if (availableSpots.length > 0) {
-            const randomIndex = availableSpots[Math.floor(Math.random() * availableSpots.length)];
-            const zoneTypes: RadiationZone["type"][] = ["boost", "drain", "shield"];
-            const randomType = zoneTypes[Math.floor(Math.random() * zoneTypes.length)];
-            createRadiationZone(randomIndex, randomType);
+        case 'Attack':
+          // Check if player has any creatures that can attack
+          const hasAttackers = newState.playerBoard.some(card => card !== null);
+          if (hasAttackers) {
+            toast.info("Select a creature to attack with!");
+          } else {
+            toast.warning("No creatures available to attack!");
           }
-        }
+          break;
 
-        // Random chance to trigger field event
-        if (Math.random() < 0.2) {
-          triggerRandomFieldEvent(newState);
-        }
-
-        // Update ultimate ability cooldowns
-        newState.playerBoard.forEach(card => {
-          if (card?.ultimateAbility?.currentCooldown) {
-            card.ultimateAbility.currentCooldown--;
+        case 'Block':
+          if (!newState.selectedAttacker) {
+            toast.warning("No attacker was selected, skipping combat.");
+            return {
+              ...newState,
+              currentPhase: 'End'
+            };
           }
-        });
+          toast.info("Select a blocker!");
+          break;
 
-        // Apply active field event effects
-        newState.activeEvents.forEach(event => event.effect(newState));
-        
-        // Update field event durations and remove expired ones
-        newState.activeEvents = newState.activeEvents
-          .map(event => ({ ...event, duration: event.duration - 1 }))
-          .filter(event => event.duration > 0);
+        case 'Damage':
+          if (newState.selectedAttacker && newState.selectedBlocker) {
+            resolveCombat();
+          }
+          break;
+
+        case 'End':
+          // Reset any end-of-turn effects
+          updateRadiationZones();
+          break;
       }
-      
+
       return {
         ...newState,
         currentPhase: nextPhase
@@ -441,101 +473,6 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       newState.playerHand.push(drawnCard);
 
       toast.success(`Drew ${drawnCard.name}!`);
-      return newState;
-    });
-  };
-
-  const resolveCombat = () => {
-    setGameState(prev => {
-      if (!prev.selectedAttacker || !prev.selectedBlocker) {
-        return prev;
-      }
-
-      const newState = { ...prev };
-      const attackerIndex = newState.playerBoard.findIndex(card => card?.id === prev.selectedAttacker);
-      const blocker = newState.opponentBoard.find(card => card?.id === prev.selectedBlocker);
-      const attacker = newState.playerBoard[attackerIndex];
-
-      if (!attacker || !blocker) {
-        return prev;
-      }
-
-      // Calculate damage with zone modifiers
-      const attackerDamage = attacker.attack + 
-        calculateRadiationBonus(newState.playerRadiation, hasAmplifierOnBoard(newState.playerBoard)) +
-        getZoneModifier(attackerIndex, "attack");
-        
-      const blockerDamage = blocker.attack + 
-        calculateRadiationBonus(newState.opponentRadiation, hasAmplifierOnBoard(newState.opponentBoard));
-
-      // Apply damage after a delay to allow for animation
-      setTimeout(() => {
-        setGameState(current => {
-          const updatedState = { ...current };
-          
-          // Apply damage
-          const blockerIndex = updatedState.opponentBoard.findIndex(card => card?.id === blocker.id);
-          
-          if (blocker.defense <= attackerDamage) {
-            // Trigger destroy animation by setting to null after a delay
-            setTimeout(() => {
-              setGameState(s => ({
-                ...s,
-                opponentBoard: s.opponentBoard.map((c, i) => 
-                  i === blockerIndex ? null : c
-                )
-              }));
-            }, 500);
-            
-            toast.success(`${blocker.name} was destroyed!`, {
-              description: `Dealt ${attackerDamage} damage to ${blocker.defense} defense`
-            });
-          }
-
-          if (attacker.defense <= blockerDamage) {
-            // Trigger destroy animation
-            setTimeout(() => {
-              setGameState(s => ({
-                ...s,
-                playerBoard: s.playerBoard.map((c, i) => 
-                  i === attackerIndex ? null : c
-                )
-              }));
-            }, 500);
-            
-            toast.error(`${attacker.name} was destroyed!`, {
-              description: `Took ${blockerDamage} damage with ${attacker.defense} defense`
-            });
-          }
-
-          // Reset combat state
-          updatedState.selectedAttacker = null;
-          updatedState.selectedBlocker = null;
-
-          // Reset attack/block visual states
-          updatedState.playerBoard = updatedState.playerBoard.map(card =>
-            card?.isAttacking ? { ...card, isAttacking: false } : card
-          );
-          updatedState.opponentBoard = updatedState.opponentBoard.map(card =>
-            card?.isBlocking ? { ...card, isBlocking: false } : card
-          );
-
-          // Check win conditions
-          const playerBoardEmpty = updatedState.playerBoard.every(card => card === null);
-          const opponentBoardEmpty = updatedState.opponentBoard.every(card => card === null);
-
-          if (playerBoardEmpty && !opponentBoardEmpty) {
-            updatedState.isGameOver = true;
-            updatedState.winner = "Opponent";
-          } else if (!playerBoardEmpty && opponentBoardEmpty) {
-            updatedState.isGameOver = true;
-            updatedState.winner = "Player";
-          }
-
-          return updatedState;
-        });
-      }, 300);
-
       return newState;
     });
   };
