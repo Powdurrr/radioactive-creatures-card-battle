@@ -1,4 +1,3 @@
-
 import React from "react";
 import { DndContext, DragEndEvent } from "@dnd-kit/core";
 import { DraggableCard } from "./DraggableCard";
@@ -85,26 +84,26 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
-      <div className={zoneClasses}>
-        <div className="flex flex-col gap-4">
-          {/* Board Area */}
-          <div>
+      <div className="h-full flex flex-col">
+        <div className="bg-gray-900/30 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4 flex-grow">
+          <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-white/80">
+              <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-primary"></div>
                 {isOpponent ? "Opponent's Board" : "Your Board"}
               </h3>
               <span className="text-xs text-white/60">
                 {board.filter(card => card !== null).length}/5 creatures
               </span>
             </div>
-            <div className="grid grid-cols-5 gap-4 h-[160px] bg-gray-800/30 p-4 rounded-lg border border-gray-700/30">
+            <div className="grid grid-cols-5 gap-4 h-[160px] bg-gray-800/50 p-4 rounded-lg border-2 border-gray-700/50">
               {board.map((card, i) => (
                 <DroppableZone
                   key={`zone-${i}`}
                   id={`zone-${i}`}
                   className={`
-                    border border-gray-600/30 rounded-lg h-[140px] relative
-                    ${!card ? 'border-dashed' : ''}
+                    border-2 rounded-lg h-[140px] relative
+                    ${!card ? 'border-dashed border-gray-600/30 bg-gray-800/30' : 'border-transparent'}
                     ${gameState.currentPhase === 'Attack' && !isOpponent ? 'hover:border-red-500/50 cursor-pointer' : ''}
                     ${gameState.currentPhase === 'Block' && isOpponent ? 'hover:border-blue-500/50 cursor-pointer' : ''}
                   `}
@@ -117,7 +116,7 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
                   )}
                   {!card && (
                     <div className="absolute inset-0 flex items-center justify-center text-gray-500/30 text-xs">
-                      Empty Zone
+                      Empty Zone {i + 1}
                     </div>
                   )}
                   {card && renderCard(card, i)}
@@ -126,15 +125,17 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
             </div>
           </div>
           
-          {/* Hand Area */}
           {!isOpponent && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-white/80">Your Hand</h3>
+                <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-secondary"></div>
+                  Your Hand
+                </h3>
                 <span className="text-xs text-white/60">{hand.length} cards</span>
               </div>
               <motion.div 
-                className="flex gap-4 overflow-x-auto p-4 bg-gray-800/30 rounded-lg border border-gray-700/30 h-[160px]"
+                className="flex gap-4 overflow-x-auto bg-gray-800/50 p-4 rounded-lg border-2 border-gray-700/50 h-[160px]"
                 layout
               >
                 {hand.length === 0 ? (
