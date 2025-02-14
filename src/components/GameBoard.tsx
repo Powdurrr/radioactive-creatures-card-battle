@@ -4,7 +4,7 @@ import { PlayerZone } from "./PlayerZone";
 import { GameInfo } from "./GameInfo";
 import { GameLog } from "./GameLog";
 import { PlayerInfo } from "./PlayerInfo";
-import { PhaseIndicator } from "./PhaseIndicator";
+import { GameControls } from "./GameControls";
 import { GameStateProvider } from "../contexts/GameStateContext";
 
 export const GameBoard = () => {
@@ -13,10 +13,11 @@ export const GameBoard = () => {
       <div className="min-h-screen bg-gradient-to-br from-gray-700 to-gray-800 p-4">
         <div className="max-w-[1400px] mx-auto">
           <div className="grid grid-cols-[200px_1fr_300px] gap-4 min-h-[90vh]">
-            {/* Left Column - Player Info */}
+            {/* Left Column - Player Info & Controls */}
             <div className="flex flex-col gap-4">
               <PlayerInfo username="Opponent" isOpponent />
               <PlayerInfo username="Player" />
+              <GameControls />
             </div>
             
             {/* Center Column - Game Board */}
@@ -30,10 +31,7 @@ export const GameBoard = () => {
               </div>
               
               {/* Player Zone */}
-              <div className="flex flex-col gap-4">
-                <PlayerZone />
-                <PhaseIndicator />
-              </div>
+              <PlayerZone />
             </div>
             
             {/* Right Column - Game Log */}
