@@ -1,4 +1,3 @@
-
 import React from "react";
 import { DndContext, DragEndEvent } from "@dnd-kit/core";
 import { DraggableCard } from "./DraggableCard";
@@ -19,7 +18,6 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
     w-full p-4 rounded-lg
     bg-gray-900/30 backdrop-blur-sm
     border border-gray-700/50
-    ${isOpponent ? 'mb-4' : 'mt-4'}
   `;
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -87,7 +85,7 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
     <DndContext onDragEnd={handleDragEnd}>
       <div className="h-full flex flex-col">
         <div className="bg-gray-900/30 backdrop-blur-sm border border-gray-700/50 rounded-lg p-4 flex-grow">
-          <div className="mb-4">
+          <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary"></div>
@@ -127,7 +125,7 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
           </div>
           
           {!isOpponent && (
-            <div>
+            <div className="mt-2">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-secondary"></div>
