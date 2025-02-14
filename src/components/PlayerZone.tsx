@@ -86,8 +86,9 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
   return (
     <DndContext onDragEnd={handleDragEnd}>
       <div className={zoneClasses}>
-        <div className="flex flex-col gap-6">
-          <div className="space-y-2">
+        <div className="flex flex-col gap-4">
+          {/* Board Area */}
+          <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-white/80">
                 {isOpponent ? "Opponent's Board" : "Your Board"}
@@ -96,13 +97,13 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
                 {board.filter(card => card !== null).length}/5 creatures
               </span>
             </div>
-            <div className="grid grid-cols-5 gap-4 min-h-[140px] bg-gray-800/30 p-4 rounded-lg border border-gray-700/30">
+            <div className="grid grid-cols-5 gap-4 h-[160px] bg-gray-800/30 p-4 rounded-lg border border-gray-700/30">
               {board.map((card, i) => (
                 <DroppableZone
                   key={`zone-${i}`}
                   id={`zone-${i}`}
                   className={`
-                    border border-gray-600/30 rounded-lg h-full min-h-[140px] relative
+                    border border-gray-600/30 rounded-lg h-[140px] relative
                     ${!card ? 'border-dashed' : ''}
                     ${gameState.currentPhase === 'Attack' && !isOpponent ? 'hover:border-red-500/50 cursor-pointer' : ''}
                     ${gameState.currentPhase === 'Block' && isOpponent ? 'hover:border-blue-500/50 cursor-pointer' : ''}
@@ -125,14 +126,15 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
             </div>
           </div>
           
+          {/* Hand Area */}
           {!isOpponent && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-white/80">Your Hand</h3>
                 <span className="text-xs text-white/60">{hand.length} cards</span>
               </div>
               <motion.div 
-                className="flex gap-4 overflow-x-auto pb-4 bg-gray-800/30 p-4 rounded-lg border border-gray-700/30 min-h-[140px]"
+                className="flex gap-4 overflow-x-auto p-4 bg-gray-800/30 rounded-lg border border-gray-700/30 h-[160px]"
                 layout
               >
                 {hand.length === 0 ? (
@@ -140,17 +142,19 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
                     No cards in hand
                   </div>
                 ) : (
-                  hand.map((card) => (
-                    <motion.div
-                      key={card.id}
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.8, opacity: 0 }}
-                      layout
-                    >
-                      <DraggableCard {...card} />
-                    </motion.div>
-                  ))
+                  <div className="flex gap-4">
+                    {hand.map((card) => (
+                      <motion.div
+                        key={card.id}
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.8, opacity: 0 }}
+                        layout
+                      >
+                        <DraggableCard {...card} />
+                      </motion.div>
+                    ))}
+                  </div>
                 )}
               </motion.div>
             </div>
