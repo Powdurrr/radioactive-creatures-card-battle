@@ -7,6 +7,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
+import { CardStats } from "./card/CardStats";
+import { CardStones } from "./card/CardStones";
+import { CardTooltip } from "./card/CardTooltip";
+import { getRadiationEffectInfo } from "@/utils/radiationEffects";
 
 interface CardProps {
   name?: string;
@@ -34,7 +38,6 @@ export const Card = ({
   radiationEffect,
   specialAbility,
   onClick,
-  radiationZone
 }: CardProps) => {
   const [isTransforming, setIsTransforming] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -60,47 +63,7 @@ export const Card = ({
     }
   }, [isAttacking, isBlocking]);
 
-  const getRadiationEffectInfo = () => {
-    switch (radiationEffect) {
-      case "amplify":
-        return {
-          color: "text-purple-400",
-          description: "Doubles radiation effects on adjacent cards"
-        };
-      case "burst":
-        return {
-          color: "text-orange-400",
-          description: "Releases stored radiation as damage"
-        };
-      case "shield":
-        return {
-          color: "text-blue-300",
-          description: "Reduces incoming radiation damage"
-        };
-      case "drain":
-        return {
-          color: "text-red-400",
-          description: "Steals radiation from opponent"
-        };
-      case "boost":
-        return {
-          color: "text-yellow-400",
-          description: "Gains power from radiation"
-        };
-      case "reduce":
-        return {
-          color: "text-blue-400",
-          description: "Reduces radiation in play"
-        };
-      default:
-        return {
-          color: "text-gray-400",
-          description: ""
-        };
-    }
-  };
-
-  const { color, description } = getRadiationEffectInfo();
+  const { color } = getRadiationEffectInfo(radiationEffect);
 
   return (
     <TooltipProvider>
@@ -156,39 +119,20 @@ export const Card = ({
                 </div>
                 
                 <div className="flex-grow bg-gray-700/50 rounded-md relative">
-                  {stones > 0 && (
-                    <div className="absolute top-1 right-1 flex gap-1">
-                      {[...Array(stones)].map((_, i) => (
-                        <div 
-                          key={i}
-                          className={`
-                            w-2 h-2 rounded-full 
-                            ${isTransformed ? 'bg-primary animate-pulse' : 'bg-primary/80'}
-                          `}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  <CardStones stones={stones} isTransformed={isTransformed} />
                   
                   {radiationEffect === "amplify" && (
                     <BoltIcon className="absolute bottom-1 right-1 w-6 h-6 text-yellow-400/50 animate-pulse" />
                   )}
                 </div>
                 
-                <div className="flex justify-between mt-2 text-xs text-white/80">
-                  <span className={`
-                    ${isTransformed ? 'text-primary font-bold' : ''}
-                    ${isAttacking ? 'text-red-400' : ''}
-                  `}>
-                    ATK: {isTransformed ? attack * 2 : attack}
-                  </span>
-                  <span className={`
-                    ${isTransformed ? 'text-primary font-bold' : ''}
-                    ${isBlocking ? 'text-blue-400' : ''}
-                  `}>
-                    DEF: {isTransformed ? Math.floor(defense * 1.5) : defense}
-                  </span>
-                </div>
+                <CardStats
+                  attack={attack}
+                  defense={defense}
+                  isTransformed={isTransformed}
+                  isAttacking={isAttacking}
+                  isBlocking={isBlocking}
+                />
                 
                 {specialAbility && (
                   <div className={`
@@ -203,36 +147,17 @@ export const Card = ({
           </div>
         </TooltipTrigger>
         <TooltipContent side="top" className="p-3">
-          <div className="flex flex-col gap-2">
-            <div className="font-semibold text-sm">{name}</div>
-            {radiationEffect && (
-              <div className="text-xs opacity-90">
-                <span className={`font-medium ${color}`}>
-                  {radiationEffect.charAt(0).toUpperCase() + radiationEffect.slice(1)}:
-                </span> {description}
-              </div>
-            )}
-            {specialAbility && (
-              <div className="text-xs opacity-90">
-                <span className="font-medium text-primary">Special:</span> {specialAbility}
-              </div>
-            )}
-            {canTransform && (
-              <div className="text-xs text-yellow-400">
-                Ready to transform! (3 stones collected)
-              </div>
-            )}
-            {isAttacking && (
-              <div className="text-xs text-red-400">
-                Attacking with {isTransformed ? attack * 2 : attack} power
-              </div>
-            )}
-            {isBlocking && (
-              <div className="text-xs text-blue-400">
-                Blocking with {isTransformed ? Math.floor(defense * 1.5) : defense} defense
-              </div>
-            )}
-          </div>
+          <CardTooltip
+            name={name}
+            radiationEffect={radiationEffect}
+            specialAbility={specialAbility}
+            canTransform={canTransform}
+            isAttacking={isAttacking}
+            isBlocking={isBlocking}
+            attack={attack}
+            defense={defense}
+            isTransformed={isTransformed}
+          />
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
