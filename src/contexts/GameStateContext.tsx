@@ -95,6 +95,50 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
+  const updateRadiationZones = () => {
+    setGameState(prev => {
+      const newState = { ...prev };
+      // Update durations and remove expired zones
+      newState.radiationZones = newState.radiationZones
+        .map(zone => ({ ...zone, duration: zone.duration - 1 }))
+        .filter(zone => zone.duration > 0);
+      
+      // Apply zone effects
+      newState.radiationZones.forEach(zone => {
+        const card = newState.playerBoard[zone.index];
+        if (!card) return;
+
+        switch (zone.type) {
+          case "boost":
+            card.attack += 1;
+            break;
+          case "drain":
+            newState.playerRadiation = Math.max(0, newState.playerRadiation - 1);
+            break;
+          case "shield":
+            // Shield effect handled during combat
+            break;
+        }
+      });
+
+      return newState;
+    });
+  };
+
+  const getZoneModifier = (index: number, type: "attack" | "defense") => {
+    const zone = gameState.radiationZones.find(z => z.index === index);
+    if (!zone) return 0;
+
+    switch (zone.type) {
+      case "boost":
+        return type === "attack" ? 1 : 0;
+      case "shield":
+        return type === "defense" ? 1 : 0;
+      default:
+        return 0;
+    }
+  };
+
   const triggerRandomFieldEvent = (state: GameState) => {
     const events: FieldEvent[] = [
       {
@@ -278,6 +322,24 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       
       if (nextPhase === 'Draw') {
         setTurnCount(turnCount + 1);
+        updateRadiationZones();
+        
+        // Random chance to create new radiation zone
+        if (Math.random() < 0.3) {
+          const availableSpots = prev.playerBoard
+            .map((card, index) => ({ card, index }))
+            .filter(({ card, index }) => 
+              card && !prev.radiationZones.some(zone => zone.index === index)
+            )
+            .map(({ index }) => index);
+
+          if (availableSpots.length > 0) {
+            const randomIndex = availableSpots[Math.floor(Math.random() * availableSpots.length)];
+            const zoneTypes: RadiationZone["type"][] = ["boost", "drain", "shield"];
+            const randomType = zoneTypes[Math.floor(Math.random() * zoneTypes.length)];
+            createRadiationZone(randomIndex, randomType);
+          }
+        }
       }
       
       return {
@@ -311,22 +373,27 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
 
       const newState = { ...prev };
-      const attacker = newState.playerBoard.find(card => card?.id === prev.selectedAttacker);
+      const attackerIndex = newState.playerBoard.findIndex(card => card?.id === prev.selectedAttacker);
       const blocker = newState.opponentBoard.find(card => card?.id === prev.selectedBlocker);
+      const attacker = newState.playerBoard[attackerIndex];
 
       if (!attacker || !blocker) {
         return prev;
       }
 
-      // Calculate damage
-      const attackerDamage = attacker.attack + calculateRadiationBonus(newState.playerRadiation, hasAmplifierOnBoard(newState.playerBoard));
-      const blockerDamage = blocker.attack + calculateRadiationBonus(newState.opponentRadiation, hasAmplifierOnBoard(newState.opponentBoard));
+      // Calculate damage with zone modifiers
+      const attackerDamage = attacker.attack + 
+        calculateRadiationBonus(newState.playerRadiation, hasAmplifierOnBoard(newState.playerBoard)) +
+        getZoneModifier(attackerIndex, "attack");
+        
+      const blockerDamage = blocker.attack + 
+        calculateRadiationBonus(newState.opponentRadiation, hasAmplifierOnBoard(newState.opponentBoard));
 
       // Apply damage
       blocker.defense -= attackerDamage;
       attacker.defense -= blockerDamage;
 
-      // Check for destructions
+      // Process results
       if (blocker.defense <= 0) {
         const blockerIndex = newState.opponentBoard.findIndex(card => card?.id === blocker.id);
         newState.opponentBoard[blockerIndex] = null;
@@ -334,7 +401,6 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
 
       if (attacker.defense <= 0) {
-        const attackerIndex = newState.playerBoard.findIndex(card => card?.id === attacker.id);
         newState.playerBoard[attackerIndex] = null;
         toast.error(`${attacker.name} was destroyed!`);
       }

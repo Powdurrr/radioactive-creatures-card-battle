@@ -4,6 +4,7 @@ import { DndContext, DragEndEvent } from "@dnd-kit/core";
 import { DraggableCard } from "./DraggableCard";
 import { DroppableZone } from "./DroppableZone";
 import { useGameState } from "../contexts/GameStateContext";
+import { RadiationZone } from "./RadiationZone";
 
 interface PlayerZoneProps {
   isOpponent?: boolean;
@@ -49,8 +50,15 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
               <DroppableZone
                 key={`zone-${i}`}
                 id={`zone-${i}`}
-                className="border border-gray-600/30 rounded-lg h-full min-h-[140px]"
+                className="border border-gray-600/30 rounded-lg h-full min-h-[140px] relative"
               >
+                {/* Radiation Zone Effect */}
+                {gameState.radiationZones.find(zone => zone.index === i) && (
+                  <RadiationZone 
+                    zone={gameState.radiationZones.find(zone => zone.index === i)!}
+                    position={i}
+                  />
+                )}
                 {card && (
                   <DraggableCard {...card} />
                 )}
