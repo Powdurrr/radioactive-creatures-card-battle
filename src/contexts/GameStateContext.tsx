@@ -307,18 +307,37 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       return;
     }
 
-    setGameState(prev => ({
-      ...prev,
-      selectedAttacker: cardId,
-      playerBoard: prev.playerBoard.map(card =>
-        card?.id === cardId
-          ? { ...card, isAttacking: true }
-          : card?.isAttacking
-            ? { ...card, isAttacking: false }
-            : card
-      )
-    }));
-    toast.success("Selected attacker - choose a target!");
+    setGameState(prev => {
+      const newState = { ...prev };
+      
+      // Clear previous target if deselecting attacker
+      if (cardId === "") {
+        newState.selectedAttacker = null;
+        newState.targetedDefender = null;
+      } else {
+        newState.selectedAttacker = cardId;
+      }
+
+      if (cardId) {
+        toast.success("Selected attacker - choose a target!");
+      }
+
+      return newState;
+    });
+  };
+
+  const selectTarget = (targetId: string) => {
+    if (!gameState.selectedAttacker) {
+      toast.error("Select an attacker first!");
+      return;
+    }
+
+    setGameState(prev => {
+      const newState = { ...prev };
+      newState.targetedDefender = targetId;
+      toast.success("Target selected - opponent may now block!");
+      return newState;
+    });
   };
 
   const selectBlocker = (cardId: string) => {
@@ -327,54 +346,12 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       return;
     }
 
-    setGameState(prev => ({
-      ...prev,
-      selectedBlocker: cardId,
-      opponentBoard: prev.opponentBoard.map(card =>
-        card?.id === cardId
-          ? { ...card, isBlocking: true }
-          : card?.isBlocking
-            ? { ...card, isBlocking: false }
-            : card
-      )
-    }));
-    toast.success("Blocker selected - combat will resolve!");
-  };
-
-  const selectTarget = (targetId: string) => {
     setGameState(prev => {
       const newState = { ...prev };
-      newState.targetedDefender = targetId;
-      toast.info("Target selected!");
+      newState.selectedBlocker = cardId;
+      toast.success("Blocker selected - combat will resolve!");
       return newState;
     });
-  };
-
-  const calculateCombatDamage = (attacker: Card, defender: Card, state: GameState) => {
-    let attackerDamage = attacker.attack;
-    let defenderDefense = defender.defense;
-
-    // Apply transformation bonuses
-    if (attacker.isTransformed) {
-      attackerDamage *= 2;
-    }
-    if (defender.isTransformed) {
-      defenderDefense = Math.floor(defenderDefense * 1.5);
-    }
-
-    // Apply radiation effects
-    if (attacker.radiationEffect === "boost") {
-      attackerDamage += Math.floor(state.playerRadiation / 2);
-      toast.info(`Radiation Boost: +${Math.floor(state.playerRadiation / 2)} attack`);
-    }
-    if (defender.radiationEffect === "shield") {
-      defenderDefense += Math.floor(state.opponentRadiation / 3);
-      toast.info(`Radiation Shield: +${Math.floor(state.opponentRadiation / 3)} defense`);
-    }
-
-    // Calculate final damage
-    const finalDamage = Math.max(0, attackerDamage - defenderDefense);
-    return finalDamage;
   };
 
   const resolveCombat = () => {
@@ -383,82 +360,65 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     }
 
     setGameState(prev => {
-      if (!prev.selectedAttacker || !prev.selectedBlocker) {
-        toast.error("No combat to resolve!");
+      if (!prev.selectedAttacker || !prev.targetedDefender) {
+        toast.error("No valid combat to resolve!");
         return prev;
       }
 
       const newState = { ...prev };
-      const attackerIndex = newState.playerBoard.findIndex(card => card?.id === prev.selectedAttacker);
-      const blockerIndex = newState.opponentBoard.findIndex(card => card?.id === prev.selectedBlocker);
+      const attacker = newState.playerBoard.find(card => card?.id === prev.selectedAttacker);
+      const defender = newState.opponentBoard.find(card => card?.id === prev.targetedDefender);
       
-      const attacker = newState.playerBoard[attackerIndex];
-      const blocker = newState.opponentBoard[blockerIndex];
-
-      if (!attacker || !blocker) {
+      if (!attacker || !defender) {
+        toast.error("Combat creatures not found!");
         return prev;
       }
 
-      // Calculate damage with radiation effects
-      const attackerDamage = calculateCombatDamage(attacker, blocker, newState);
-      const blockerDamage = calculateCombatDamage(blocker, attacker, newState);
+      // Calculate and apply combat damage
+      const damage = calculateCombatDamage(attacker, defender, newState);
+      
+      if (newState.selectedBlocker) {
+        const blocker = newState.opponentBoard.find(card => card?.id === newState.selectedBlocker);
+        if (blocker) {
+          // Handle blocking damage
+          const blockDamage = calculateCombatDamage(blocker, attacker, newState);
+          attacker.defense -= blockDamage;
+          blocker.defense -= damage;
 
-      // Apply combat effects
-      if (attacker.radiationEffect === "burst" && newState.playerRadiation >= 5) {
-        toast.warning("Radiation Burst triggered!");
-        blocker.defense -= 2;
-        newState.playerRadiation -= 2;
-      }
+          toast.info(`Combat Results:`, {
+            description: `${attacker.name} deals ${damage} damage to blocker, receives ${blockDamage} damage`
+          });
 
-      if (blocker.radiationEffect === "drain") {
-        const drainAmount = Math.min(2, newState.playerRadiation);
-        newState.playerRadiation -= drainAmount;
-        newState.opponentRadiation += drainAmount;
-        toast.info(`Radiation Drain: ${drainAmount} radiation transferred`);
-      }
-
-      // Apply damage
-      blocker.defense -= attackerDamage;
-      attacker.defense -= blockerDamage;
-
-      toast.info(`Combat Results:`, {
-        description: `${attacker.name} deals ${attackerDamage} damage, ${blocker.name} deals ${blockerDamage} damage`
-      });
-
-      // Check for destructions
-      if (blocker.defense <= 0) {
-        newState.opponentBoard[blockerIndex] = null;
-        toast.success(`${blocker.name} was destroyed!`);
-        
-        // Radiation release on destruction
-        if (blocker.radiationEffect === "amplify") {
-          newState.opponentRadiation += 2;
-          toast.warning("Amplifier destroyed: Radiation released!");
+          if (blocker.defense <= 0) {
+            const blockerIndex = newState.opponentBoard.findIndex(card => card?.id === blocker.id);
+            newState.opponentBoard[blockerIndex] = null;
+            toast.success(`${blocker.name} was destroyed!`);
+          }
         }
+      } else {
+        // Direct damage to defender
+        defender.defense -= damage;
+        toast.info(`Combat Results:`, {
+          description: `${attacker.name} deals ${damage} damage to ${defender.name}`
+        });
       }
 
       if (attacker.defense <= 0) {
+        const attackerIndex = newState.playerBoard.findIndex(card => card?.id === attacker.id);
         newState.playerBoard[attackerIndex] = null;
         toast.error(`${attacker.name} was destroyed!`);
-        
-        // Radiation release on destruction
-        if (attacker.radiationEffect === "amplify") {
-          newState.playerRadiation += 2;
-          toast.warning("Amplifier destroyed: Radiation released!");
-        }
+      }
+
+      if (defender.defense <= 0) {
+        const defenderIndex = newState.opponentBoard.findIndex(card => card?.id === defender.id);
+        newState.opponentBoard[defenderIndex] = null;
+        toast.success(`${defender.name} was destroyed!`);
       }
 
       // Reset combat state
       newState.selectedAttacker = null;
       newState.selectedBlocker = null;
-      
-      // Reset attack/block flags
-      newState.playerBoard = newState.playerBoard.map(card =>
-        card?.isAttacking ? { ...card, isAttacking: false } : card
-      );
-      newState.opponentBoard = newState.opponentBoard.map(card =>
-        card?.isBlocking ? { ...card, isBlocking: false } : card
-      );
+      newState.targetedDefender = null;
 
       return newState;
     });
@@ -603,20 +563,6 @@ const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   return (
     <GameStateContext.Provider value={value}>
       {children}
-      {gameState.isGameOver && gameState.winner && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="bg-white p-8 rounded-lg">
-            <h2 className="text-2xl font-bold mb-4">Game Over</h2>
-            <p className="text-xl">{gameState.winner} wins!</p>
-            <button
-              onClick={resetGame}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Play Again
-            </button>
-          </div>
-        </div>
-      )}
     </GameStateContext.Provider>
   );
 };
