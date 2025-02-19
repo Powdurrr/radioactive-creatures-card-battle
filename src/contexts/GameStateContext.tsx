@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
 import { 
@@ -12,7 +13,8 @@ import {
   getInitialDeck, 
   checkEvolutionRequirements, 
   evolveCard, 
-  calculateBoardStrength 
+  calculateBoardStrength,
+  calculateCombatDamage 
 } from '../utils/gameUtils';
 import {
   getCardNameByEffect,

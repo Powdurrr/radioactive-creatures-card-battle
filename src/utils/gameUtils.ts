@@ -1,4 +1,3 @@
-
 import { GameState, Card, EvolutionPath } from '../types/GameTypes';
 import { toast } from "sonner";
 import { 
@@ -89,4 +88,41 @@ export const evolveCard = (state: GameState, cardIndex: number): void => {
   toast.success(`${card.name} has evolved into ${evolution.name}!`, {
     description: `Gained ${evolution.attackBonus} attack and ${evolution.defenseBonus} defense`
   });
+};
+
+export const calculateCombatDamage = (
+  attacker: Card,
+  defender: Card,
+  gameState: GameState
+): number => {
+  let damage = attacker.attack;
+  
+  // Apply radiation bonuses
+  if (attacker.isTransformed) {
+    damage *= 2; // Double damage for transformed creatures
+  }
+
+  // Apply radiation effect modifiers
+  switch (attacker.radiationEffect) {
+    case "boost":
+      if (gameState.playerRadiation >= 5) {
+        damage += 1;
+      }
+      break;
+    case "burst":
+      damage += Math.floor(gameState.playerRadiation / 3);
+      break;
+    case "amplify":
+      if (gameState.playerRadiation >= 3) {
+        damage *= 1.5;
+      }
+      break;
+  }
+
+  // Check for shield effect on defender
+  if (defender.radiationEffect === "shield") {
+    damage = Math.max(0, damage - 1);
+  }
+
+  return Math.floor(damage);
 };
