@@ -1,6 +1,6 @@
 
-import { GameState, GameStateContextType } from '../types/GameTypes';
-import { getInitialDeck } from '../utils/gameUtils';
+import { GameState, GameStateContextType } from '../../types/GameTypes';
+import { getInitialDeck } from '../../utils/gameUtils';
 
 export const initialGameState: GameState = {
   playerBoard: Array(5).fill(null),

@@ -1,3 +1,4 @@
+
 export interface RadiationZone {
   index: number;
   type: "boost" | "drain" | "shield";
