@@ -1,4 +1,3 @@
-
 export interface RadiationZone {
   index: number;
   type: "boost" | "drain" | "shield";
@@ -57,6 +56,14 @@ export interface Card {
   energyStored?: number;
 }
 
+export interface GameLogEntry {
+  timestamp: string;
+  text: string;
+  details: string[];
+  effects: string[];
+  type: 'combat' | 'effect' | 'transform' | 'play';
+}
+
 export interface GameState {
   playerBoard: (Card | null)[];
   playerHand: Card[];
@@ -72,6 +79,7 @@ export interface GameState {
   winner: string | null;
   radiationZones: RadiationZone[];
   activeEvents: FieldEvent[];
+  gameLog: GameLogEntry[];
 }
 
 export type FieldEvent = {

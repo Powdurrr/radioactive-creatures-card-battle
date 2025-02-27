@@ -38,7 +38,8 @@ export const initialGameState: GameState = {
   isGameOver: false,
   winner: null,
   radiationZones: [],
-  activeEvents: []
+  activeEvents: [],
+  gameLog: []
 };
 
 export const phases = ['Draw', 'Recovery', 'Attack', 'Block', 'Damage', 'End'];
