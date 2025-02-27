@@ -1,21 +1,21 @@
 
-import React from 'react';
-import { getRadiationEffectInfo } from '@/utils/radiationEffects';
-import { Swords, Shield, Zap } from 'lucide-react';
+import React from "react";
+import { getRadiationEffectInfo } from "@/utils/radiationEffects";
 
-interface CardTooltipProps {
+export interface CardTooltipProps {
   name: string;
   radiationEffect?: string;
   specialAbility?: string;
   canTransform: boolean;
-  isAttacking?: boolean;
-  isBlocking?: boolean;
+  isAttacking: boolean;
+  isBlocking: boolean;
   attack: number;
   defense: number;
   isTransformed: boolean;
+  evolutionLevel: number;
 }
 
-export const CardTooltip = ({
+export const CardTooltip = ({ 
   name,
   radiationEffect,
   specialAbility,
@@ -24,60 +24,66 @@ export const CardTooltip = ({
   isBlocking,
   attack,
   defense,
-  isTransformed
+  isTransformed,
+  evolutionLevel
 }: CardTooltipProps) => {
-  const { color, description } = getRadiationEffectInfo(radiationEffect);
-  const transformedAttack = isTransformed ? attack * 2 : attack;
-  const transformedDefense = isTransformed ? Math.floor(defense * 1.5) : defense;
-
+  const effectInfo = getRadiationEffectInfo(radiationEffect);
+  
   return (
-    <div className="flex flex-col gap-2">
-      <div className="font-semibold text-sm">{name}</div>
+    <div className="space-y-2">
+      <div className="flex items-start justify-between">
+        <h3 className={`font-medium ${isTransformed ? 'text-primary' : 'text-white'}`}>
+          {name}
+        </h3>
+        {evolutionLevel > 0 && (
+          <span className={`
+            text-xs px-2 py-0.5 rounded-full
+            ${evolutionLevel === 1 ? 'bg-blue-500/20 text-blue-300' : 'bg-purple-500/20 text-purple-300'}
+          `}>
+            Level {evolutionLevel}
+          </span>
+        )}
+      </div>
       
       {radiationEffect && (
-        <div className="text-xs opacity-90">
-          <span className={`font-medium ${color}`}>
+        <div className="text-sm">
+          <span className={`font-medium ${effectInfo.color}`}>
             {radiationEffect.charAt(0).toUpperCase() + radiationEffect.slice(1)}:
-          </span> {description}
+          </span>{' '}
+          <span className="text-gray-300">{effectInfo.description}</span>
         </div>
       )}
       
       {specialAbility && (
-        <div className="text-xs opacity-90">
-          <span className="font-medium text-primary">Special:</span> {specialAbility}
+        <div className="text-sm">
+          <span className="font-medium text-blue-400">Special:</span>{' '}
+          <span className="text-gray-300">{specialAbility}</span>
         </div>
       )}
       
-      <div className="flex flex-col gap-1 mt-1">
-        <div className={`text-xs ${isAttacking ? 'text-red-400' : 'text-white/80'} flex items-center gap-1`}>
-          <Swords className="w-3 h-3" />
-          Attack Power: {transformedAttack}
-          {isTransformed && <span className="text-primary">(Transformed)</span>}
+      <div className="text-sm space-y-1">
+        <div className="flex justify-between">
+          <span className="text-gray-400">Attack</span>
+          <span className="text-white">{attack}</span>
         </div>
-        
-        <div className={`text-xs ${isBlocking ? 'text-blue-400' : 'text-white/80'} flex items-center gap-1`}>
-          <Shield className="w-3 h-3" />
-          Defense: {transformedDefense}
-          {isTransformed && <span className="text-primary">(Transformed)</span>}
+        <div className="flex justify-between">
+          <span className="text-gray-400">Defense</span>
+          <span className="text-white">{defense}</span>
         </div>
       </div>
-
+      
       {canTransform && (
-        <div className="text-xs text-yellow-400 flex items-center gap-1">
-          <Zap className="w-3 h-3" />
-          Ready to transform!
+        <div className="text-xs text-primary/80 bg-primary/10 px-2 py-1 rounded">
+          Can transform with 5+ radiation!
         </div>
       )}
       
-      {isAttacking && (
-        <div className="text-xs text-red-400 font-medium">
-          Attacking with {transformedAttack} power
-        </div>
-      )}
-      
-      {isBlocking && (
-        <div className="text-xs text-blue-400 font-medium">
-          Blocking with {transformedDefense} defense
+      {(isAttacking || isBlocking) && (
+        <div className={`
+          text-xs px-2 py-1 rounded
+          ${isAttacking ? 'text-red-400 bg-red-500/10' : 'text-blue-400 bg-blue-500/10'}
+        `}>
+          {isAttacking ? 'Attacking' : 'Blocking'}
         </div>
       )}
     </div>
