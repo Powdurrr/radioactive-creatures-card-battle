@@ -16,6 +16,7 @@ import {
   calculateBoardStrength,
   calculateCombatDamage 
 } from '../utils/gameUtils';
+import { handleRadiationEffects } from '../utils/radiationMechanics';
 import {
   getCardNameByEffect,
   getCardAttackByEffect,
