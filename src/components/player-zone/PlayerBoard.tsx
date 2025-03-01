@@ -20,8 +20,22 @@ export const PlayerBoard = ({
   onCardClick
 }: PlayerBoardProps) => {
   const handleZoneClick = (index: number, card: any) => {
-    if (card) {
+    if (!card) return;
+    
+    const isAttackPhase = gameState.currentPhase === 'Attack';
+    const isSelectingAttacker = gameState.attackPhaseStep === 'selectAttacker';
+    const isSelectingTarget = gameState.attackPhaseStep === 'selectTarget';
+    
+    // Handle attacker selection (player's board during attack phase)
+    if (!isOpponent && isAttackPhase && isSelectingAttacker) {
       onCardClick(card.id);
+      return;
+    }
+    
+    // Handle target selection (opponent's board after attacker is selected)
+    if (isOpponent && isAttackPhase && isSelectingTarget && gameState.selectedAttacker) {
+      onCardClick(card.id);
+      return;
     }
   };
 
@@ -46,8 +60,7 @@ export const PlayerBoard = ({
               border-2 rounded-lg h-[140px] min-h-[140px] relative
               ${!card ? 'border-dashed border-gray-600/30 bg-gray-800/30' : 'border-transparent'}
               ${gameState.currentPhase === 'Attack' && !isOpponent ? 'hover:border-red-500/50 cursor-pointer' : ''}
-              ${gameState.currentPhase === 'Block' && isOpponent ? 'hover:border-blue-500/50 cursor-pointer' : ''}
-              ${card && gameState.currentPhase === 'Attack' && isOpponent ? 'hover:border-red-500/50 cursor-pointer' : ''}
+              ${gameState.currentPhase === 'Attack' && isOpponent && gameState.selectedAttacker ? 'hover:border-red-500/50 cursor-pointer' : ''}
             `}
           >
             {gameState.radiationZones.find(zone => zone.index === i) && (
@@ -64,15 +77,15 @@ export const PlayerBoard = ({
             {card && (
               <CardSelection
                 card={card}
-                isSelected={Boolean(gameState.selectedAttacker && gameState.selectedAttacker === card.id)}
-                isTargeted={Boolean(gameState.targetedDefender && gameState.targetedDefender === card.id)}
+                isSelected={Boolean(gameState.selectedAttacker === card.id)}
+                isTargeted={Boolean(gameState.targetedDefender === card.id)}
                 canAttack={!isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectAttacker'}
                 canBeTargeted={isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectTarget' && Boolean(gameState.selectedAttacker)}
-                onClick={() => onCardClick(card.id)}
+                onClick={() => handleZoneClick(i, card)}
               />
             )}
             <AttackIndicator 
-              isVisible={card?.id === gameState.selectedAttacker && gameState.attackPhaseStep === 'selectTarget'}
+              isVisible={Boolean(card?.id === gameState.selectedAttacker && gameState.attackPhaseStep === 'selectTarget')}
             />
           </DroppableZone>
         ))}

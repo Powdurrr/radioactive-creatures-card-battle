@@ -1,3 +1,4 @@
+
 import { GameState } from './types';
 import { toast } from 'sonner';
 import { calculateCombatDamage } from '../../utils/gameUtils';
@@ -66,17 +67,28 @@ export const resolveCombat = (state: GameState): GameState => {
 };
 
 export const selectAttacker = (state: GameState, cardId: string): GameState => {
-  const newState = { ...state };
-  
-  // Clear previous target if deselecting attacker
-  if (cardId === "") {
-    newState.selectedAttacker = null;
-    newState.targetedDefender = null;
-  } else {
-    newState.selectedAttacker = cardId;
+  if (state.currentPhase !== 'Attack') {
+    toast.error("Can only select attackers during Attack phase!");
+    return state;
   }
 
-  if (cardId) {
+  const newState = { ...state };
+  
+  // If deselecting current attacker
+  if (cardId === state.selectedAttacker) {
+    newState.selectedAttacker = null;
+    newState.targetedDefender = null;
+    newState.attackPhaseStep = 'selectAttacker';
+    toast.info("Attacker deselected");
+  } else {
+    // Selecting new attacker
+    const attacker = state.playerBoard.find(card => card?.id === cardId);
+    if (!attacker) {
+      toast.error("Invalid attacker selection");
+      return state;
+    }
+    newState.selectedAttacker = cardId;
+    newState.attackPhaseStep = 'selectTarget';
     toast.success("Selected attacker - choose a target!");
   }
 
@@ -84,15 +96,41 @@ export const selectAttacker = (state: GameState, cardId: string): GameState => {
 };
 
 export const selectTarget = (state: GameState, targetId: string): GameState => {
+  if (state.currentPhase !== 'Attack' || state.attackPhaseStep !== 'selectTarget') {
+    toast.error("Must select an attacker first!");
+    return state;
+  }
+
   const newState = { ...state };
-  newState.targetedDefender = targetId;
-  toast.success("Target selected - opponent may now block!");
+  
+  // If clicking already selected target, deselect it
+  if (targetId === state.targetedDefender) {
+    newState.targetedDefender = null;
+    toast.info("Target deselected");
+  } else {
+    const defender = state.opponentBoard.find(card => card?.id === targetId);
+    if (!defender) {
+      toast.error("Invalid target selection");
+      return state;
+    }
+    newState.targetedDefender = targetId;
+    newState.attackPhaseStep = 'complete';
+    
+    // Immediately resolve combat since we're not implementing blocking for now
+    return resolveCombat(newState);
+  }
+
   return newState;
 };
 
 export const selectBlocker = (state: GameState, cardId: string): GameState => {
+  if (!state.selectedAttacker || !state.targetedDefender) {
+    toast.error("No valid attack to block!");
+    return state;
+  }
+
   const newState = { ...state };
   newState.selectedBlocker = cardId;
   toast.success("Blocker selected - combat will resolve!");
-  return newState;
+  return resolveCombat(newState);
 };
