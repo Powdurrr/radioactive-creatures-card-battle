@@ -25,12 +25,14 @@ export const PlayerBoard = ({
     const isAttackPhase = gameState.currentPhase === 'Attack';
     const isSelectingAttacker = gameState.attackPhaseStep === 'selectAttacker';
     const isSelectingTarget = gameState.attackPhaseStep === 'selectTarget';
+    const isSelectingBlocker = gameState.attackPhaseStep === 'selectBlocker';
     
     console.log('Card click:', {
       isOpponent,
       isAttackPhase,
       isSelectingAttacker,
       isSelectingTarget,
+      isSelectingBlocker,
       cardId: card.id,
       currentStep: gameState.attackPhaseStep
     });
@@ -45,6 +47,13 @@ export const PlayerBoard = ({
     // Opponent's board - Select target
     if (isOpponent && isAttackPhase && isSelectingTarget) {
       console.log('Selecting target:', card.id);
+      onCardClick(card.id);
+      return;
+    }
+
+    // Opponent's board - Select blocker
+    if (isOpponent && isAttackPhase && isSelectingBlocker) {
+      console.log('Selecting blocker:', card.id);
       onCardClick(card.id);
       return;
     }
@@ -72,6 +81,7 @@ export const PlayerBoard = ({
               ${!card ? 'border-dashed border-gray-600/30 bg-gray-800/30' : 'border-transparent'}
               ${!isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectAttacker' ? 'hover:border-red-500/50 cursor-pointer' : ''}
               ${isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectTarget' ? 'hover:border-red-500/50 cursor-pointer' : ''}
+              ${isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectBlocker' ? 'hover:border-blue-500/50 cursor-pointer' : ''}
             `}
           >
             {gameState.radiationZones.find(zone => zone.index === i) && (
@@ -90,8 +100,10 @@ export const PlayerBoard = ({
                 card={card}
                 isSelected={card.id === gameState.selectedAttacker}
                 isTargeted={card.id === gameState.targetedDefender}
+                isBlocking={card.id === gameState.selectedBlocker}
                 canAttack={!isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectAttacker'}
                 canBeTargeted={isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectTarget'}
+                canBlock={isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectBlocker'}
                 onClick={() => handleZoneClick(i, card)}
               />
             )}

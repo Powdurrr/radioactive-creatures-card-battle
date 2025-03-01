@@ -1,3 +1,4 @@
+
 import { GameState } from './types';
 import { toast } from 'sonner';
 import { calculateCombatDamage } from '../../utils/gameUtils';
@@ -5,7 +6,8 @@ import { calculateCombatDamage } from '../../utils/gameUtils';
 export const resolveCombat = (state: GameState): GameState => {
   console.log('Resolving combat:', {
     attacker: state.selectedAttacker,
-    defender: state.targetedDefender
+    defender: state.targetedDefender,
+    blocker: state.selectedBlocker
   });
 
   if (!state.selectedAttacker || !state.targetedDefender) {
@@ -16,38 +18,51 @@ export const resolveCombat = (state: GameState): GameState => {
   const newState = { ...state };
   const attacker = newState.playerBoard.find(card => card?.id === state.selectedAttacker);
   const defender = newState.opponentBoard.find(card => card?.id === state.targetedDefender);
+  const blocker = newState.opponentBoard.find(card => card?.id === state.selectedBlocker);
   
-  if (!attacker || !defender) {
-    toast.error("Combat creatures not found!");
+  if (!attacker) {
+    toast.error("Attacker not found!");
+    return state;
+  }
+
+  // If opponent has creatures, they must block
+  const hasValidBlockers = newState.opponentBoard.some(card => card !== null);
+  if (hasValidBlockers && !blocker) {
+    toast.error("Opponent must assign a blocker!");
+    return state;
+  }
+
+  // Apply damage to blocker or defender
+  const target = blocker || defender;
+  if (!target) {
+    toast.error("Combat target not found!");
     return state;
   }
 
   // Calculate and apply combat damage
-  const damage = calculateCombatDamage(attacker, defender, newState);
-  defender.defense -= damage;
+  const damage = calculateCombatDamage(attacker, target, newState);
+  target.defense -= damage;
   
   toast.info(`Combat Results:`, {
-    description: `${attacker.name} deals ${damage} damage to ${defender.name}`
+    description: `${attacker.name} deals ${damage} damage to ${target.name}`
   });
 
   // Handle destroyed creatures
-  if (defender.defense <= 0) {
-    const defenderIndex = newState.opponentBoard.findIndex(card => card?.id === defender.id);
-    newState.opponentBoard[defenderIndex] = null;
-    toast.success(`${defender.name} was destroyed!`);
+  if (target.defense <= 0) {
+    const targetIndex = newState.opponentBoard.findIndex(card => card?.id === target.id);
+    if (targetIndex !== -1) {
+      newState.opponentBoard[targetIndex] = null;
+      toast.success(`${target.name} was destroyed!`);
+    }
   }
 
   // Reset combat state
   newState.selectedAttacker = null;
   newState.targetedDefender = null;
+  newState.selectedBlocker = null;
   newState.attackPhaseStep = 'selectAttacker';
   
-  console.log('Combat resolved, new state:', {
-    attackPhaseStep: newState.attackPhaseStep,
-    selectedAttacker: newState.selectedAttacker,
-    targetedDefender: newState.targetedDefender
-  });
-
+  console.log('Combat resolved, new state:', newState);
   return newState;
 };
 
@@ -65,6 +80,7 @@ export const selectAttacker = (state: GameState, cardId: string): GameState => {
   if (cardId === state.selectedAttacker) {
     newState.selectedAttacker = null;
     newState.targetedDefender = null;
+    newState.selectedBlocker = null;
     newState.attackPhaseStep = 'selectAttacker';
     toast.info("Attacker deselected");
   } else {
@@ -100,6 +116,7 @@ export const selectTarget = (state: GameState, targetId: string): GameState => {
   // If clicking already selected target, deselect it
   if (targetId === state.targetedDefender) {
     newState.targetedDefender = null;
+    newState.selectedBlocker = null;
     toast.info("Target deselected");
     return newState;
   }
@@ -111,19 +128,47 @@ export const selectTarget = (state: GameState, targetId: string): GameState => {
   }
 
   newState.targetedDefender = targetId;
-  console.log('Target selected, resolving combat...');
+  newState.attackPhaseStep = 'selectBlocker';
   
-  // Immediately resolve combat
-  return resolveCombat(newState);
+  // Check if opponent has any creatures to block with
+  const hasBlockers = state.opponentBoard.some(card => card !== null);
+  if (!hasBlockers) {
+    console.log('No blockers available, resolving combat...');
+    return resolveCombat(newState);
+  }
+  
+  toast.info("Select a blocker to defend with!");
+  return newState;
 };
 
 export const selectBlocker = (state: GameState, cardId: string): GameState => {
+  console.log('Selecting blocker:', cardId);
+  
+  if (state.currentPhase !== 'Attack' || state.attackPhaseStep !== 'selectBlocker') {
+    toast.error("Must select an attacker and target first!");
+    return state;
+  }
+
   if (!state.selectedAttacker || !state.targetedDefender) {
     toast.error("No valid attack to block!");
     return state;
   }
 
   const newState = { ...state };
+  
+  // If clicking already selected blocker, deselect it
+  if (cardId === state.selectedBlocker) {
+    newState.selectedBlocker = null;
+    toast.info("Blocker deselected");
+    return newState;
+  }
+
+  const blocker = state.opponentBoard.find(card => card?.id === cardId);
+  if (!blocker) {
+    toast.error("Invalid blocker selection");
+    return state;
+  }
+
   newState.selectedBlocker = cardId;
   toast.success("Blocker selected - combat will resolve!");
   return resolveCombat(newState);

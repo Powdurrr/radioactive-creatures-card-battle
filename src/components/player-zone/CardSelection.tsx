@@ -7,8 +7,10 @@ interface CardSelectionProps {
   card: any;
   isSelected: boolean;
   isTargeted: boolean;
+  isBlocking: boolean;
   canAttack: boolean;
   canBeTargeted: boolean;
+  canBlock: boolean;
   onClick: () => void;
 }
 
@@ -16,8 +18,10 @@ export const CardSelection = ({
   card,
   isSelected,
   isTargeted,
+  isBlocking,
   canAttack,
   canBeTargeted,
+  canBlock,
   onClick,
 }: CardSelectionProps) => {
   return (
@@ -28,12 +32,16 @@ export const CardSelection = ({
       className="relative"
     >
       <AnimatePresence>
-        {(isSelected || isTargeted) && (
+        {(isSelected || isTargeted || isBlocking) && (
           <motion.div
             initial={{ scale: 1.1, opacity: 0 }}
             animate={{ scale: 1.2, opacity: 1 }}
             exit={{ scale: 1.1, opacity: 0 }}
-            className={`absolute -inset-2 rounded-lg ${isSelected ? 'border-2 border-red-500 bg-red-500/10' : ''} ${isTargeted ? 'border-2 border-red-500/50 bg-red-500/5' : ''}`}
+            className={`absolute -inset-2 rounded-lg 
+              ${isSelected ? 'border-2 border-red-500 bg-red-500/10' : ''} 
+              ${isTargeted ? 'border-2 border-red-500/50 bg-red-500/5' : ''}
+              ${isBlocking ? 'border-2 border-blue-500 bg-blue-500/10' : ''}
+            `}
           />
         )}
       </AnimatePresence>
@@ -42,12 +50,14 @@ export const CardSelection = ({
         {...card}
         isAttacking={isSelected}
         isTargeted={isTargeted}
+        isBlocking={isBlocking}
         onClick={onClick}
         className={`
           transition-all duration-300
           ${canAttack ? 'cursor-pointer hover:ring-2 hover:ring-red-500/50' : ''}
           ${canBeTargeted ? 'cursor-pointer hover:ring-2 hover:ring-red-500/30' : ''}
-          ${isSelected || isTargeted ? 'z-10' : ''}
+          ${canBlock ? 'cursor-pointer hover:ring-2 hover:ring-blue-500/30' : ''}
+          ${isSelected || isTargeted || isBlocking ? 'z-10' : ''}
         `}
       />
     </motion.div>
