@@ -1,3 +1,4 @@
+
 import { GameState } from '../../types/GameTypes';
 import { getInitialDeck } from '../../utils/gameUtils';
 
@@ -43,5 +44,18 @@ export const initialGameState: GameState = {
 };
 
 export const phases = ['Draw', 'Recovery', 'Attack', 'Block', 'Damage', 'End'];
+
+export interface GameStateContextType {
+  gameState: GameState;
+  attachStone: (sourceId: string, targetId: string) => void;
+  playCard: (cardId: string, zoneId: string) => void;
+  transformCard: (cardId: string) => void;
+  advancePhase: () => void;
+  selectAttacker: (cardId: string) => void;
+  selectBlocker: (cardId: string) => void;
+  selectTarget: (targetId: string) => void;
+  resetGame: () => void;
+  useUltimateAbility: (cardId: string) => void;
+}
 
 export type { GameState };
