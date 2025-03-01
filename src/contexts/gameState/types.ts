@@ -1,5 +1,4 @@
-
-import { GameState, GameStateContextType } from '../../types/GameTypes';
+import { GameState } from '../../types/GameTypes';
 import { getInitialDeck } from '../../utils/gameUtils';
 
 export const initialGameState: GameState = {
@@ -39,9 +38,10 @@ export const initialGameState: GameState = {
   winner: null,
   radiationZones: [],
   activeEvents: [],
+  combatStack: [],
   gameLog: []
 };
 
 export const phases = ['Draw', 'Recovery', 'Attack', 'Block', 'Damage', 'End'];
 
-export type { GameState, GameStateContextType };
+export type { GameState };

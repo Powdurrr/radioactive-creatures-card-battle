@@ -25,6 +25,22 @@ export interface UltimateAbility {
   currentCooldown?: number;
 }
 
+export interface CombatKeywords {
+  firstStrike?: boolean;
+  doubleStrike?: boolean;
+  lifelink?: boolean;
+  deathtouch?: boolean;
+  trample?: boolean;
+  indestructible?: boolean;
+  vigilance?: boolean;
+  damagePrevention?: number;
+}
+
+export interface TriggeredAbility {
+  triggerEvent: "preCombat" | "postCombat" | "onDeath";
+  effect: (card: Card, state: GameState) => { gameState: GameState; log: string[] };
+}
+
 export interface Card {
   id: string;
   name: string;
@@ -54,6 +70,9 @@ export interface Card {
     requirement: string[];
   }[];
   energyStored?: number;
+  keywords?: CombatKeywords;
+  triggeredAbilities?: TriggeredAbility[];
+  toughness?: number;
 }
 
 export interface GameLogEntry {
@@ -80,6 +99,13 @@ export interface GameState {
   radiationZones: RadiationZone[];
   activeEvents: FieldEvent[];
   gameLog: GameLogEntry[];
+  combatStack?: CombatStackItem[];
+}
+
+export interface CombatStackItem {
+  id: string;
+  description: string;
+  resolve: (state: GameState) => { gameState: GameState; log: string[] };
 }
 
 export type FieldEvent = {
