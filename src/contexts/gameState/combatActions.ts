@@ -1,4 +1,3 @@
-
 import { GameState } from './types';
 import { toast } from 'sonner';
 import { calculateCombatDamage } from '../../utils/gameUtils';
@@ -61,6 +60,7 @@ export const resolveCombat = (state: GameState): GameState => {
   newState.selectedAttacker = null;
   newState.selectedBlocker = null;
   newState.targetedDefender = null;
+  newState.attackPhaseStep = 'selectAttacker';
 
   return newState;
 };

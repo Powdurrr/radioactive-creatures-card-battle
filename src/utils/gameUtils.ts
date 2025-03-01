@@ -1,4 +1,3 @@
-
 import { GameState, Card, EvolutionPath } from '../types/GameTypes';
 import { toast } from "sonner";
 import { 
@@ -127,3 +126,4 @@ export const calculateCombatDamage = (
 
   return Math.floor(damage);
 };
+
