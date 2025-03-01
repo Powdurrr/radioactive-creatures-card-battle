@@ -73,6 +73,7 @@ export interface Card {
   keywords?: CombatKeywords;
   triggeredAbilities?: TriggeredAbility[];
   toughness?: number;
+  isTargetable?: boolean;
 }
 
 export interface GameLogEntry {
@@ -100,6 +101,7 @@ export interface GameState {
   activeEvents: FieldEvent[];
   gameLog: GameLogEntry[];
   combatStack?: CombatStackItem[];
+  attackPhaseStep: 'selectAttacker' | 'selectTarget' | 'complete';
 }
 
 export interface CombatStackItem {

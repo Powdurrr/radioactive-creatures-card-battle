@@ -1,4 +1,3 @@
-
 import { GameState } from '../../types/GameTypes';
 import { getInitialDeck } from '../../utils/gameUtils';
 
@@ -40,7 +39,8 @@ export const initialGameState: GameState = {
   radiationZones: [],
   activeEvents: [],
   combatStack: [],
-  gameLog: []
+  gameLog: [],
+  attackPhaseStep: 'selectAttacker'
 };
 
 export const phases = ['Draw', 'Recovery', 'Attack', 'Block', 'Damage', 'End'];

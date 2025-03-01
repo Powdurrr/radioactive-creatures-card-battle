@@ -1,29 +1,25 @@
 
 import React from "react";
-import { DndContext, DragEndEvent } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, useDraggable, useDroppable } from "@dnd-kit/core";
 import { DraggableCard } from "./DraggableCard";
 import { DroppableZone } from "./DroppableZone";
 import { useGameState } from "../contexts/GameStateContext";
 import { RadiationZone } from "./RadiationZone";
-import { motion } from "framer-motion";
-import { AttackMenu } from "./AttackMenu";
+import { motion, AnimatePresence } from "framer-motion";
+import { Swords } from "lucide-react";
+import { toast } from "sonner";
 
 interface PlayerZoneProps {
   isOpponent?: boolean;
 }
 
 export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
-  const { gameState, attachStone, playCard, selectAttacker, selectBlocker, selectTarget } = useGameState();
+  const { gameState, attachStone, playCard, selectAttacker, selectTarget } = useGameState();
   
-  const zoneClasses = `
-    w-full p-4 rounded-lg
-    bg-gray-900/30 backdrop-blur-sm
-    border border-gray-700/50
-  `;
+  const zoneClasses = `w-full p-4 rounded-lg bg-gray-900/30 backdrop-blur-sm border border-gray-700/50`;
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    
     if (!over) return;
 
     const sourceId = active.id.toString();
@@ -37,25 +33,29 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
     }
   };
 
-  const handleZoneClick = (index: number, card: any) => {
-    if (!card) return;
+  const handleCardClick = (cardId: string) => {
+    if (gameState.currentPhase !== 'Attack') {
+      return;
+    }
 
-    if (gameState.currentPhase === 'Attack' && !isOpponent) {
-      // Selecting an attacker
-      if (gameState.selectedAttacker === card.id) {
-        // Deselect if clicking the same card
+    // Handle attacker selection
+    if (!isOpponent && gameState.attackPhaseStep === 'selectAttacker') {
+      if (cardId === gameState.selectedAttacker) {
+        // Deselect current attacker
         selectAttacker("");
+        toast.info("Attacker deselected");
       } else {
-        selectAttacker(card.id);
+        // Select new attacker
+        selectAttacker(cardId);
+        toast.success("Select a target to attack!");
       }
-    } else if (gameState.currentPhase === 'Attack' && isOpponent) {
-      // Selecting a target for the attack
-      if (gameState.selectedAttacker) {
-        selectTarget(card.id);
-      }
-    } else if (gameState.currentPhase === 'Block' && isOpponent) {
-      // Selecting a blocker
-      selectBlocker(card.id);
+      return;
+    }
+
+    // Handle target selection
+    if (isOpponent && gameState.attackPhaseStep === 'selectTarget' && gameState.selectedAttacker) {
+      selectTarget(cardId);
+      toast.success("Target selected - opponent may now block!");
     }
   };
 
@@ -65,36 +65,59 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
   const renderCard = (card: any, index: number) => {
     if (!card) return null;
 
-    const isSelected = !isOpponent && card.id === gameState.selectedAttacker;
-    const isTargeted = isOpponent && gameState.targetedDefender === card.id;
-    const isBlocking = isOpponent && card.id === gameState.selectedBlocker;
+    const isSelected = card.id === gameState.selectedAttacker;
+    const isTargeted = card.id === gameState.targetedDefender;
+    const canAttack = !isOpponent && 
+                     gameState.currentPhase === 'Attack' && 
+                     gameState.attackPhaseStep === 'selectAttacker';
+    const canBeTargeted = isOpponent && 
+                         gameState.currentPhase === 'Attack' && 
+                         gameState.attackPhaseStep === 'selectTarget' &&
+                         gameState.selectedAttacker;
 
-    const cardElement = (
+    return (
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.3 }}
+        className="relative"
       >
+        <AnimatePresence>
+          {(isSelected || isTargeted) && (
+            <motion.div
+              initial={{ scale: 1.1, opacity: 0 }}
+              animate={{ scale: 1.2, opacity: 1 }}
+              exit={{ scale: 1.1, opacity: 0 }}
+              className={`absolute -inset-2 rounded-lg ${isSelected ? 'border-2 border-red-500' : ''} ${isTargeted ? 'border-2 border-red-500/50' : ''}`}
+            />
+          )}
+        </AnimatePresence>
+        
         <DraggableCard 
-          {...card} 
+          {...card}
           isAttacking={isSelected}
-          isBlocking={isBlocking}
+          isTargeted={isTargeted}
+          onClick={() => handleCardClick(card.id)}
+          className={`
+            transition-all duration-300
+            ${canAttack ? 'cursor-pointer hover:ring-2 hover:ring-red-500/50' : ''}
+            ${canBeTargeted ? 'cursor-pointer hover:ring-2 hover:ring-red-500/30' : ''}
+          `}
         />
+
+        {isSelected && gameState.attackPhaseStep === 'selectTarget' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute top-0 right-0 -mr-2 -mt-2"
+          >
+            <div className="bg-red-500 p-1 rounded-full shadow-lg">
+              <Swords className="w-4 h-4 text-white" />
+            </div>
+          </motion.div>
+        )}
       </motion.div>
     );
-
-    if (!isOpponent && gameState.currentPhase === 'Attack') {
-      return (
-        <AttackMenu
-          onAttack={() => selectAttacker(card.id)}
-          showAttackOption={true}
-        >
-          {cardElement}
-        </AttackMenu>
-      );
-    }
-
-    return cardElement;
   };
 
   return (
