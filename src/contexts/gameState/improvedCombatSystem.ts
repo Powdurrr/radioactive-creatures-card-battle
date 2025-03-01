@@ -1,150 +1,187 @@
-
+import { GameState, Card, CombatStackItem, GameLogEntry } from '../../types/GameTypes';
+import { toast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
-import { GameState, Card, CombatStackItem } from '../../types/GameTypes';
-import { toast } from 'sonner';
-import { calculateCombatDamage } from './combatActions';
 
 interface CombatResult {
-  outcome: {
-    attackerSurvives: boolean;
-    defenderSurvives: boolean;
-    damageToAttacker: number;
-    damageToDefender: number;
-    combatLog: string[];
-  };
-  newState: GameState;
+  attackerDamage: number;
+  defenderDamage: number;
+  attackerDestroyed: boolean;
+  defenderDestroyed: boolean;
+  radiationGained: number;
+  specialEffects: string[];
 }
 
-const resolveCombatWithStack = (attacker: Card, defender: Card, state: GameState): CombatResult => {
-  let combatLog: string[] = [];
-  let combatStack: CombatStackItem[] = [];
-  
-  // Calculate initial combat damage
-  const damageResult = calculateCombatDamage(attacker, defender, state);
-  
-  // Process pre-combat triggers
-  if (attacker.triggeredAbilities) {
-    attacker.triggeredAbilities.forEach(ability => {
-      if (ability.triggerEvent === "preCombat") {
-        combatStack.push({
-          id: uuidv4(),
-          description: `${attacker.name}'s pre-combat trigger`,
-          resolve: ability.effect
-        });
-      }
-    });
-  }
+interface TriggeredAbilityEffect {
+  (state: GameState, card: Card): { gameState: GameState; log: string[] };
+}
 
-  // Apply damage and check for destruction
-  const attackerDestroyed = attacker.defense <= damageResult.defenderDamage;
-  const defenderDestroyed = defender.defense <= damageResult.attackerDamage;
+interface TriggeredAbility {
+  triggerEvent: "preCombat" | "postCombat" | "onDeath";
+  effect: TriggeredAbilityEffect;
+}
 
-  // Add destruction triggers to stack
-  if (attackerDestroyed) {
-    attacker.triggeredAbilities?.forEach(ability => {
-      if (ability.triggerEvent === "onDeath") {
-        combatStack.push({
-          id: uuidv4(),
-          description: `${attacker.name}'s death trigger`,
-          resolve: ability.effect
-        });
-      }
-    });
-  }
+// Helper to add entries to combat log
+interface LogEntry {
+  message: string;
+  details: string[];
+  effects: string[];
+  type: "combat" | "effect" | "transform" | "play";
+}
 
-  if (defenderDestroyed) {
-    defender.triggeredAbilities?.forEach(ability => {
-      if (ability.triggerEvent === "onDeath") {
-        combatStack.push({
-          id: uuidv4(),
-          description: `${defender.name}'s death trigger`,
-          resolve: ability.effect
-        });
-      }
-    });
-  }
-
-  // Resolve the combat stack
-  let newState = { ...state };
-  while (combatStack.length > 0) {
-    const item = combatStack.pop()!;
-    const result = item.resolve(newState);
-    newState = result.gameState;
-    combatLog.push(...result.log);
-  }
-
-  // Update the creatures' status
-  if (attackerDestroyed) {
-    const attackerIndex = newState.playerBoard.findIndex(card => card?.id === attacker.id);
-    if (attackerIndex !== -1) {
-      newState.playerBoard[attackerIndex] = null;
-    }
-    combatLog.push(`${attacker.name} was destroyed!`);
-  }
-
-  if (defenderDestroyed) {
-    const defenderIndex = newState.opponentBoard.findIndex(card => card?.id === defender.id);
-    if (defenderIndex !== -1) {
-      newState.opponentBoard[defenderIndex] = null;
-    }
-    combatLog.push(`${defender.name} was destroyed!`);
-  }
-
+const addCombatLogEntry = (state: GameState, entry: LogEntry): GameState => {
   return {
-    outcome: {
-      attackerSurvives: !attackerDestroyed,
-      defenderSurvives: !defenderDestroyed,
-      damageToAttacker: damageResult.defenderDamage,
-      damageToDefender: damageResult.attackerDamage,
-      combatLog
-    },
-    newState
-  };
-};
-
-export const resolveCombat = (state: GameState): GameState => {
-  if (!state.selectedAttacker || !state.targetedDefender) {
-    toast.error("No valid combat to resolve!");
-    return state;
-  }
-
-  const attacker = state.playerBoard.find(card => card?.id === state.selectedAttacker);
-  const defender = state.opponentBoard.find(card => card?.id === state.targetedDefender);
-
-  if (!attacker || !defender) {
-    toast.error("Combat creatures not found!");
-    return state;
-  }
-
-  // Initialize toughness if not set
-  if (attacker.toughness === undefined) attacker.toughness = attacker.defense;
-  if (defender.toughness === undefined) defender.toughness = defender.defense;
-
-  // Use the enhanced combat system
-  const { outcome, newState } = resolveCombatWithStack(attacker, defender, state);
-
-  // Update the game state with combat results
-  const finalState = {
-    ...newState,
-    selectedAttacker: null,
-    selectedBlocker: null,
-    targetedDefender: null,
+    ...state,
     gameLog: [
-      ...newState.gameLog,
+      ...state.gameLog,
       {
         timestamp: new Date().toISOString(),
-        text: `Combat between ${attacker.name} and ${defender.name}`,
-        details: outcome.combatLog,
-        effects: [],
-        type: 'combat'
+        text: entry.message,
+        details: entry.details.filter(d => d !== ''),
+        effects: entry.effects,
+        type: entry.type
       }
     ]
   };
+};
 
-  // Display combat results
-  outcome.combatLog.forEach(log => 
-    toast.info(log)
+export const calculateCombatDamage = (
+  attacker: Card,
+  defender: Card,
+  gameState: GameState,
+  attackerIndex?: number,
+  defenderIndex?: number
+): CombatResult => {
+  let attackerDamage = attacker.attack;
+  let defenderDamage = 0;
+  let radiationGained = 0;
+  const specialEffects: string[] = [];
+  
+  if (attacker.isTransformed) {
+    attackerDamage *= 2;
+    specialEffects.push("Transformed: Damage doubled");
+  }
+
+  if (gameState.radiationZones.length > 0 && attackerIndex !== undefined) {
+    const zone = gameState.radiationZones[attackerIndex];
+    if (zone) {
+      attackerDamage = applyZoneEffect(zone, attacker, defender, attackerDamage, specialEffects);
+    }
+  }
+
+  if (attacker.radiationEffect === "boost") {
+    const adjacentBonus = calculateAdjacentEffectsBonus(gameState.playerBoard, attackerIndex || 0, "boost");
+    attackerDamage += adjacentBonus;
+    specialEffects.push(`Boost Adjacent Bonus: +${adjacentBonus}`);
+  }
+
+  return {
+    attackerDamage,
+    defenderDamage,
+    attackerDestroyed: defender.defense <= attackerDamage,
+    defenderDestroyed: attacker.defense <= defenderDamage,
+    radiationGained,
+    specialEffects
+  };
+};
+
+// Apply zone effects to combat
+const applyZoneEffect = (
+  zone: { type: "boost" | "drain" | "shield" },
+  attacker: Card,
+  defender: Card,
+  attackerDamage: number,
+  specialEffects: string[]
+): number => {
+  switch (zone.type) {
+    case "boost":
+      attackerDamage += 2;
+      specialEffects.push("Boost Zone: +2 damage");
+      break;
+    case "drain":
+      attackerDamage -= 1;
+      specialEffects.push("Drain Zone: -1 damage");
+      break;
+    case "shield":
+      attackerDamage = Math.max(0, attackerDamage - 1);
+      specialEffects.push("Shield Zone: Damage reduced by 1");
+      break;
+  }
+  return attackerDamage;
+};
+
+// Calculate bonus from adjacent cards with same effect
+const calculateAdjacentEffectsBonus = (
+  board: (Card | null)[],
+  cardIndex: number,
+  effect?: string
+): number => {
+  let bonus = 0;
+  const adjacentIndices = [cardIndex - 1, cardIndex + 1].filter(i => i >= 0 && i < board.length);
+
+  adjacentIndices.forEach(index => {
+    const card = board[index];
+    if (card && card.radiationEffect === effect) {
+      bonus += 1;
+    }
+  });
+  return 0;
+};
+
+export const resolveCombat = (state: GameState): GameState => {
+  const newState = { ...state };
+  
+  if (!newState.selectedAttacker || !newState.targetedDefender) {
+    toast.error("No valid combat to resolve!");
+    return newState;
+  }
+
+  const attackerIndex = newState.playerBoard.findIndex(card => card?.id === newState.selectedAttacker);
+  const defenderIndex = newState.opponentBoard.findIndex(card => card?.id === newState.targetedDefender);
+  
+  if (attackerIndex === -1 || defenderIndex === -1) {
+    toast.error("Combat creatures not found!");
+    return newState;
+  }
+
+  const attacker = newState.playerBoard[attackerIndex]!;
+  const defender = newState.opponentBoard[defenderIndex]!;
+
+  const combatResult = calculateCombatDamage(
+    attacker,
+    defender,
+    newState,
+    attackerIndex,
+    defenderIndex
   );
 
-  return finalState;
+  // Apply combat results
+  const updatedState = addCombatLogEntry(newState, {
+    message: `${attacker.name} attacks ${defender.name}`,
+    details: [
+      `Deals ${combatResult.attackerDamage} damage`,
+      ...combatResult.specialEffects
+    ],
+    effects: combatResult.specialEffects,
+    type: "combat"
+  });
+
+  // Update creature states
+  if (combatResult.defenderDestroyed) {
+    updatedState.opponentBoard[defenderIndex] = null;
+  } else {
+    defender.defense -= combatResult.attackerDamage;
+  }
+
+  if (combatResult.attackerDestroyed) {
+    updatedState.playerBoard[attackerIndex] = null;
+  } else {
+    attacker.defense -= combatResult.defenderDamage;
+  }
+
+  // Reset combat state
+  updatedState.selectedAttacker = null;
+  updatedState.selectedBlocker = null;
+  updatedState.targetedDefender = null;
+
+  return updatedState;
 };
