@@ -12,7 +12,7 @@ export const PhaseIndicator = () => {
       <div className="flex justify-between items-center px-4">
         <div className="flex items-center gap-2">
           <Zap className="h-4 w-4 text-yellow-500" />
-          <span className="text-sm font-medium text-yellow-500">Turn {gameState.currentTurn}</span>
+          <span className="text-sm font-medium text-yellow-500">Turn {gameState.currentTurn || 1}</span>
         </div>
         
         <div className="flex gap-2">

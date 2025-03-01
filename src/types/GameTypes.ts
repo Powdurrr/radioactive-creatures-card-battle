@@ -102,6 +102,7 @@ export interface GameState {
   gameLog: GameLogEntry[];
   combatStack?: CombatStackItem[];
   attackPhaseStep: 'selectAttacker' | 'selectTarget' | 'selectBlocker' | 'complete';
+  currentTurn: number;
 }
 
 export interface CombatStackItem {
