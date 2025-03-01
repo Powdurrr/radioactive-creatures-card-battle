@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Zap } from "lucide-react";
 import { PlayerZone } from "./PlayerZone";
 import { GameInfo } from "./GameInfo";
 import { PlayerInfo } from "./PlayerInfo";
