@@ -1,6 +1,6 @@
 
 import React from "react";
-import { DndContext, DragEndEvent, useDraggable, useDroppable } from "@dnd-kit/core";
+import { DndContext, DragEndEvent } from "@dnd-kit/core";
 import { DraggableCard } from "./DraggableCard";
 import { DroppableZone } from "./DroppableZone";
 import { useGameState } from "../contexts/GameStateContext";
@@ -59,6 +59,12 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
     }
   };
 
+  const handleZoneClick = (index: number, card: any) => {
+    if (card) {
+      handleCardClick(card.id);
+    }
+  };
+
   const board = isOpponent ? gameState.opponentBoard : gameState.playerBoard;
   const hand = isOpponent ? [] : gameState.playerHand;
 
@@ -88,7 +94,7 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
               initial={{ scale: 1.1, opacity: 0 }}
               animate={{ scale: 1.2, opacity: 1 }}
               exit={{ scale: 1.1, opacity: 0 }}
-              className={`absolute -inset-2 rounded-lg ${isSelected ? 'border-2 border-red-500' : ''} ${isTargeted ? 'border-2 border-red-500/50' : ''}`}
+              className={`absolute -inset-2 rounded-lg ${isSelected ? 'border-2 border-red-500 bg-red-500/10' : ''} ${isTargeted ? 'border-2 border-red-500/50 bg-red-500/5' : ''}`}
             />
           )}
         </AnimatePresence>
@@ -102,18 +108,35 @@ export const PlayerZone = ({ isOpponent = false }: PlayerZoneProps) => {
             transition-all duration-300
             ${canAttack ? 'cursor-pointer hover:ring-2 hover:ring-red-500/50' : ''}
             ${canBeTargeted ? 'cursor-pointer hover:ring-2 hover:ring-red-500/30' : ''}
+            ${isSelected || isTargeted ? 'z-10' : ''}
           `}
         />
 
         {isSelected && gameState.attackPhaseStep === 'selectTarget' && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0 }}
             className="absolute top-0 right-0 -mr-2 -mt-2"
           >
-            <div className="bg-red-500 p-1 rounded-full shadow-lg">
-              <Swords className="w-4 h-4 text-white" />
+            <div className="bg-red-500 p-1.5 rounded-full shadow-lg">
+              <Swords className="w-4 h-4 text-white animate-pulse" />
             </div>
+          </motion.div>
+        )}
+
+        {/* Attack arrow indicator */}
+        {isSelected && gameState.attackPhaseStep === 'selectTarget' && (
+          <motion.div 
+            className="absolute left-1/2 top-1/2 w-32 h-0.5 bg-red-500/50 origin-left z-0"
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            style={{
+              transformOrigin: 'left center',
+              rotate: '30deg'
+            }}
+          >
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-solid border-l-8 border-red-500/50 border-y-transparent border-y-4" />
           </motion.div>
         )}
       </motion.div>
