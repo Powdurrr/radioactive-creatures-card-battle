@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Card } from "./Card";
@@ -31,18 +30,7 @@ export const DraggableCard = (props: DraggableCardProps) => {
   const isBeingTargeted = gameState.targetedDefender === props.id;
 
   const getCombatAnimation = () => {
-    if (props.isAttacking) {
-      return {
-        scale: [1, 1.1, 1],
-        y: [0, -10, 0],
-        transition: { 
-          duration: 0.5,
-          repeat: Infinity,
-          repeatDelay: 1
-        }
-      };
-    }
-    if (props.isBlocking) {
+    if (props.isAttacking || props.isBlocking) {
       return {
         scale: [1, 1.1, 1],
         y: [0, -10, 0],
@@ -87,7 +75,6 @@ export const DraggableCard = (props: DraggableCardProps) => {
           ${props.isAttacking ? 'ring-4 ring-red-500 shadow-lg shadow-red-500/50' : ''}
           ${props.isBlocking ? 'ring-4 ring-blue-500 shadow-lg shadow-blue-500/50' : ''}
           ${isBeingTargeted ? 'ring-4 ring-red-500 shadow-lg shadow-red-500/50' : ''}
-          ${gameState.currentPhase === 'Attack' ? 'hover:ring-2 hover:ring-red-300' : ''}
         `}>
           {(props.isAttacking || isBeingTargeted) && (
             <motion.div

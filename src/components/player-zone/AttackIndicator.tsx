@@ -5,9 +5,10 @@ import { motion } from "framer-motion";
 
 interface AttackIndicatorProps {
   isVisible: boolean;
+  isOpponent: boolean;
 }
 
-export const AttackIndicator = ({ isVisible }: AttackIndicatorProps) => {
+export const AttackIndicator = ({ isVisible, isOpponent }: AttackIndicatorProps) => {
   if (!isVisible) return null;
 
   return (
@@ -29,7 +30,7 @@ export const AttackIndicator = ({ isVisible }: AttackIndicatorProps) => {
         animate={{ scaleX: 1 }}
         style={{
           transformOrigin: 'left center',
-          rotate: '30deg'
+          rotate: isOpponent ? '-30deg' : '30deg'
         }}
       >
         <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-solid border-l-8 border-red-500/50 border-y-transparent border-y-4" />
