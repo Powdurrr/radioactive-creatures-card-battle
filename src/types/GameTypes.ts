@@ -101,7 +101,7 @@ export interface GameState {
   activeEvents: FieldEvent[];
   gameLog: GameLogEntry[];
   combatStack?: CombatStackItem[];
-  attackPhaseStep: 'selectAttacker' | 'selectTarget' | 'complete';
+  attackPhaseStep: 'selectAttacker' | 'selectTarget' | 'selectBlocker' | 'complete';
 }
 
 export interface CombatStackItem {

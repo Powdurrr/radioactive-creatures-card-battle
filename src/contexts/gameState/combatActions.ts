@@ -1,4 +1,3 @@
-
 import { GameState } from './types';
 import { toast } from 'sonner';
 import { calculateCombatDamage } from '../../utils/gameUtils';
@@ -128,16 +127,17 @@ export const selectTarget = (state: GameState, targetId: string): GameState => {
   }
 
   newState.targetedDefender = targetId;
-  newState.attackPhaseStep = 'selectBlocker';
   
   // Check if opponent has any creatures to block with
   const hasBlockers = state.opponentBoard.some(card => card !== null);
-  if (!hasBlockers) {
+  if (hasBlockers) {
+    newState.attackPhaseStep = 'selectBlocker';
+    toast.info("Select a blocker to defend with!");
+  } else {
     console.log('No blockers available, resolving combat...');
     return resolveCombat(newState);
   }
   
-  toast.info("Select a blocker to defend with!");
   return newState;
 };
 
