@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { PlayerZone } from "./PlayerZone";
 import { GameInfo } from "./GameInfo";
@@ -14,6 +13,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/t
 
 export const GameBoard = () => {
   const [showTutorial, setShowTutorial] = useState(false);
+  const { gameState } = useGameState();
+  
+  const phases = ["Draw", "Recovery", "Attack", "Block", "Damage", "End"];
   
   return (
     <GameStateProvider>
@@ -122,15 +124,15 @@ export const GameBoard = () => {
                 <div className="flex justify-between items-center px-4">
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-yellow-500" />
-                    <span className="text-sm font-medium text-yellow-500">Turn 3</span>
+                    <span className="text-sm font-medium text-yellow-500">Turn {gameState.currentTurn}</span>
                   </div>
                   
                   <div className="flex gap-2">
-                    {["Draw", "Recovery", "Attack", "Block", "Damage", "End"].map((phase, i) => (
+                    {phases.map((phase) => (
                       <div 
                         key={phase}
                         className={`px-3 py-1 text-xs rounded-full transition-colors
-                          ${phase === "Attack" 
+                          ${phase === gameState.currentPhase
                             ? "bg-primary text-white font-medium" 
                             : "text-gray-400 bg-gray-800/30"}`
                         }
