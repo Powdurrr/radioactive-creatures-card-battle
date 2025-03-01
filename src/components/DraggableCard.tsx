@@ -34,8 +34,7 @@ export const DraggableCard = (props: DraggableCardProps) => {
     if (props.isAttacking) {
       return {
         scale: [1, 1.1, 1],
-        x: [0, 30, 0],
-        rotateZ: [0, -5, 0],
+        y: [0, -10, 0],
         transition: { 
           duration: 0.5,
           repeat: Infinity,
@@ -81,14 +80,14 @@ export const DraggableCard = (props: DraggableCardProps) => {
           transition: { duration: 0.2 }
         }}
         onClick={props.onClick}
+        className="w-full h-full cursor-pointer"
       >
         <div className={`
-          relative transition-all duration-300
+          relative transition-all duration-300 h-full
           ${props.isAttacking ? 'ring-4 ring-red-500 shadow-lg shadow-red-500/50' : ''}
           ${props.isBlocking ? 'ring-4 ring-blue-500 shadow-lg shadow-blue-500/50' : ''}
           ${isBeingTargeted ? 'ring-4 ring-red-500 shadow-lg shadow-red-500/50' : ''}
-          ${gameState.currentPhase === 'Attack' ? 'cursor-pointer hover:ring-2 hover:ring-red-300' : ''}
-          ${gameState.currentPhase === 'Block' ? 'cursor-pointer hover:ring-2 hover:ring-blue-300' : ''}
+          ${gameState.currentPhase === 'Attack' ? 'hover:ring-2 hover:ring-red-300' : ''}
         `}>
           {(props.isAttacking || isBeingTargeted) && (
             <motion.div
@@ -116,22 +115,6 @@ export const DraggableCard = (props: DraggableCardProps) => {
           )}
           <Card {...props} isTargeted={isBeingTargeted} />
         </div>
-
-        {props.isAttacking && gameState.targetedDefender && (
-          <motion.div
-            className="absolute top-1/2 left-full h-0.5 bg-red-500 origin-left z-50"
-            style={{
-              width: '100px',
-              transformOrigin: '0% 50%'
-            }}
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 border-solid border-transparent border-l-8 border-l-red-500" 
-                 style={{ borderWidth: '4px 0 4px 8px' }} />
-          </motion.div>
-        )}
       </motion.div>
     </AnimatePresence>
   );

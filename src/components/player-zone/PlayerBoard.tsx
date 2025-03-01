@@ -1,4 +1,3 @@
-
 import React from "react";
 import { DroppableZone } from "../DroppableZone";
 import { CardSelection } from "./CardSelection";
@@ -21,42 +20,7 @@ export const PlayerBoard = ({
 }: PlayerBoardProps) => {
   const handleZoneClick = (index: number, card: any) => {
     if (!card) return;
-    
-    const isAttackPhase = gameState.currentPhase === 'Attack';
-    const isSelectingAttacker = gameState.attackPhaseStep === 'selectAttacker';
-    const isSelectingTarget = gameState.attackPhaseStep === 'selectTarget';
-    const isSelectingBlocker = gameState.attackPhaseStep === 'selectBlocker';
-    
-    console.log('Card click:', {
-      isOpponent,
-      isAttackPhase,
-      isSelectingAttacker,
-      isSelectingTarget,
-      isSelectingBlocker,
-      cardId: card.id,
-      currentStep: gameState.attackPhaseStep
-    });
-
-    // Player's board - Select attacker
-    if (!isOpponent && isAttackPhase && isSelectingAttacker) {
-      console.log('Selecting attacker:', card.id);
-      onCardClick(card.id);
-      return;
-    }
-    
-    // Opponent's board - Select target
-    if (isOpponent && isAttackPhase && isSelectingTarget) {
-      console.log('Selecting target:', card.id);
-      onCardClick(card.id);
-      return;
-    }
-
-    // Opponent's board - Select blocker
-    if (isOpponent && isAttackPhase && isSelectingBlocker) {
-      console.log('Selecting blocker:', card.id);
-      onCardClick(card.id);
-      return;
-    }
+    onCardClick(card.id);
   };
 
   return (
@@ -96,20 +60,24 @@ export const PlayerBoard = ({
               </div>
             )}
             {card && (
-              <CardSelection
-                card={card}
-                isSelected={card.id === gameState.selectedAttacker}
-                isTargeted={card.id === gameState.targetedDefender}
-                isBlocking={card.id === gameState.selectedBlocker}
-                canAttack={!isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectAttacker'}
-                canBeTargeted={isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectTarget'}
-                canBlock={isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectBlocker'}
-                onClick={() => handleZoneClick(i, card)}
-              />
+              <>
+                <CardSelection
+                  card={card}
+                  isSelected={card.id === gameState.selectedAttacker}
+                  isTargeted={card.id === gameState.targetedDefender}
+                  isBlocking={card.id === gameState.selectedBlocker}
+                  canAttack={!isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectAttacker'}
+                  canBeTargeted={isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectTarget'}
+                  canBlock={isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectBlocker'}
+                  onClick={() => handleZoneClick(i, card)}
+                />
+                {card.id === gameState.selectedAttacker && gameState.attackPhaseStep === 'selectTarget' && (
+                  <AttackIndicator 
+                    isVisible={true}
+                  />
+                )}
+              </>
             )}
-            <AttackIndicator 
-              isVisible={card?.id === gameState.selectedAttacker && gameState.attackPhaseStep === 'selectTarget'}
-            />
           </DroppableZone>
         ))}
       </div>
