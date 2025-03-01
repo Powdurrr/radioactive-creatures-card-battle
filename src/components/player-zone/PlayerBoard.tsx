@@ -64,10 +64,10 @@ export const PlayerBoard = ({
             {card && (
               <CardSelection
                 card={card}
-                isSelected={gameState.selectedAttacker === card.id}
-                isTargeted={gameState.targetedDefender === card.id}
+                isSelected={Boolean(gameState.selectedAttacker && gameState.selectedAttacker === card.id)}
+                isTargeted={Boolean(gameState.targetedDefender && gameState.targetedDefender === card.id)}
                 canAttack={!isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectAttacker'}
-                canBeTargeted={isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectTarget' && gameState.selectedAttacker}
+                canBeTargeted={isOpponent && gameState.currentPhase === 'Attack' && gameState.attackPhaseStep === 'selectTarget' && Boolean(gameState.selectedAttacker)}
                 onClick={() => onCardClick(card.id)}
               />
             )}
